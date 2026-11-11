@@ -1,0 +1,990 @@
+20张图片已经全部上传完成，请开始跨图片综合分析，输出最终羊毛毡材质规则库、通用英文提示词模板、模型适配建议和A/B测试方案。
+下面开始进入跨图片综合分析。
+我会把这份内容整理成一份尽量接近 “可直接交给 Codex / Etsy AI Studio 集成” 的规则文档。
+
+说明：本轮你口头目标是 20 张，但本对话里实际逐张完成分析并进入档案的，是 17 张样本图（其中包含若干同系列的正反面、单品/组合图、多视角图）。
+因此以下结论是基于 这 17 张已分析样本 得出的。
+这不影响建立高质量规则库，反而因为有多视角和同系列图，能更好提炼“材质一致性”和“商品化摄影规律”。
+
+Etsy AI Studio
+真实羊毛毡视觉规则库 v1.0
+用途： 用于指导 GPT Image、Gemini 等模型生成更接近真实 Etsy 羊毛毡商品的图像
+来源： 基于 17 张参考样本的跨图归纳
+状态： 规则已归纳，尚未经过系统化 A/B 生图验证，需在实测中继续迭代
+
+一、核心结论总览
+如果只用一句话概括这批样本的共同规律：
+
+高质量“真实羊毛毡感”并不是靠一味增加 fuzz（绒毛）得到的，而是靠“有控制的纤维可见度 + 合理的体块结构 + 部件之间不同的毡化密度 + 可信的商品摄影方式”共同构成。
+
+换句话说，真正有效的不是简单写：
+
+needle felted
+wool texture
+handmade
+而是要进一步明确：
+
+纤维是短绒、交错、压实，还是局部卷曲？
+主体是紧实核心，还是外层覆盖卷毛？
+不同部件之间是否存在不同的毡化密度？
+造型是否像“真实能做出来的手工摆件”？
+摄影是否像真实 Etsy 商品图，而不是 CGI 渲染图？
+二、样本中重复出现的高质量材质特征
+这一部分回答你要求的第 1 点：
+找出重复出现的高质量材质特征。
+
+2.1 高频重复的材质特征（跨样本最稳定）
+1）表面存在细小但受控的可见纤维
+不是完全光滑，也不是毛茸茸爆炸。
+更常见的是：
+
+fine visible wool fibers
+short interlocked fibers
+delicate crossed strands
+subtle fuzzy halo
+compact matte felt surface
+出现频率高的样本类型：
+企鹅、海鹦、北极熊、白兔、人物裙装、老鼠、天使、圣诞老人外套等。
+
+2）不同部件的纤维密度不同
+这是最重要的发现之一。
+
+例如：
+
+身体主体：多为较紧实的短纤维毡面
+头发/胡须：更有方向性或更松散
+翅膀/花瓣/帽檐：比主体略柔软或略蓬松
+卷毛绵羊身体：明显不同于面部和腿部
+服装与肤色部分：纤维表现不同
+这说明：
+“全身统一一种毛绒贴图”是错误方向。
+
+3）轮廓边缘通常有轻微柔化
+好的羊毛毡样本几乎都不是“刀切边缘”。
+
+常见表现：
+
+边缘有轻微 fuzzy edge
+轮廓圆钝、柔和
+组件之间存在自然厚度
+过渡处不是硬切面
+例如：人物裙摆、龟壳板块边缘、兔子花瓣、天使翅膀、圣诞帽檐。
+
+4）表面多为哑光漫反射
+几乎所有高质量样本都不依赖高光来表达材质。
+
+常见规律：
+
+matte finish
+soft light scattering
+no glossy plastic sheen
+no ceramic shine
+即便使用珠眼、金属丝眼镜等小配件，也只是小面积局部反光，不是整体高光。
+
+5）真实感来自**“压实的体块 + 微纤维表面”**
+很多成功样本不是“毛很长”，而是：
+
+主体内部体块很扎实
+表面保留细纤维
+大结构明确，小纹理真实
+比如：
+
+白鲸
+北极熊
+乌龟
+企鹅
+天使
+人物摆件
+这说明：
+
+羊毛毡真实感不等于“更毛”，而常常是“更像一个压实塑形成形的体块，上面留有自然纤维痕迹”。
+
+6）部分样本存在方向性纤维
+尤其出现在：
+
+头发
+胡须
+龟壳分区
+南瓜头套局部
+花瓣/叶片
+卷毛层
+说明可以加入：
+
+directional wool fibers
+aligned wool strands
+fiber direction following form
+而不是所有区域都随机 fuzz。
+
+7）少量“非羊毛”或“混合材料”能增强真实性
+高质量样本里并非所有东西都必须用羊毛表达。
+
+出现过的混合材料包括：
+
+珠眼
+金属丝眼镜
+纸质小书页
+布料丝带
+可能的细线胡须 / whiskers
+这说明对于 Etsy 商品图，适度混材不是问题，反而更接近真实商品。
+
+2.2 中频但重要的材质特征
+8）局部卷曲羊毛层
+典型出现在：
+
+绵羊身体
+圣诞老人胡须
+这不是所有商品都该有，而是特定局部结构的有效策略。
+
+9）分区凸起或分层结构
+典型出现在：
+
+乌龟龟壳
+天使翅膀
+花瓣
+服装边缘
+篮子 / 小配件
+说明要强调：
+
+layered felt structure
+softly raised sections
+dimensional felt components
+10）颜色边界通常柔和，而非喷漆式锐利分色
+比如：
+
+蜥蜴腹部与背部
+海鹦黑白分区
+动物口鼻区域
+衣物和围裙分层
+不是模糊不清，而是 soft but readable boundary。
+
+三、最能体现真实手工羊毛毡质感的关键词
+这一部分回答你要求的第 2 点：
+总结哪些关键词最能体现真实手工羊毛毡质感。
+
+我把它分成四类：核心正向词、增强词、结构词、摄影词。
+
+3.1 核心正向材质关键词（推荐高频使用）
+这些是最稳定、最安全的“材质骨架词”。
+
+推荐核心词组
+handmade needle-felted wool
+densely interlocked wool fibers
+fine visible wool strands
+compact felted surface
+soft matte wool texture
+subtle natural fuzz
+delicate fiber halo
+tactile wool realism
+physically crafted miniature
+carefully sculpted felt form
+3.2 真实感增强关键词（建议按需使用）
+这些用来避免“太干净太塑料”。
+
+subtle directional fiber variation
+slightly irregular handmade silhouette
+gently softened edges
+restrained surface irregularity
+mild organic asymmetry
+believable dimensional thickness
+layered felt components
+compact felted core
+naturally varied fiber density
+3.3 针对局部部件的关键词
+头发 / 胡须
+directional wool hair
+aligned wool strands
+softly arranged wool locks
+controlled curly wool beard
+gently gathered wool hair
+翅膀 / 花瓣 / 叶片 / 龟壳
+layered felt wings
+softly sculpted felt petals
+raised felted shell sections
+subtle felt grooves
+thick felt edges
+卷毛层
+curly wool locks
+looped fleece texture
+irregular wool curls
+tactile fleece layer
+深色身体表面
+visible crossed fiber network
+fine interwoven wool strands
+compact matte charcoal felt
+3.4 摄影与商品图关键词
+photorealistic product photograph
+close-up tabletop product shot
+soft diffused daylight
+gentle contact shadows
+shallow but controlled depth of field
+neutral blurred background
+rustic wooden tabletop
+cozy handcrafted product styling
+real camera look
+Etsy-style craft product photography
+3.5 需要谨慎使用的词
+这些词不是不能用，而是容易把模型带偏。
+
+谨慎词
+fluffy
+furry
+woolly
+fuzzy
+realistic fur
+ultra detailed texture
+hyper realistic
+原因：
+
+fluffy / furry 容易变成长毛毛绒玩具
+realistic fur 容易变成动物皮毛
+ultra detailed 容易生成过度锐化 CGI 质感
+hyper realistic 有时会把“手工艺感”拉向真实生物或真实人物
+四、规则拆分：材质规则 / 造型规则 / 摄影规则 / 应避免效果
+这一部分回答你要求的第 3 点。
+
+4A. 材质规则（Material Rules）
+MR-01 以“压实毡面 + 微可见纤维”为默认基底
+默认不是长毛，也不是完全平滑。
+应优先描述：
+
+compact felted surface
+fine interlocked fibers
+subtle visible wool strands
+matte finish
+MR-02 不同部件必须允许不同纤维密度
+例如：
+
+主体：紧实
+头发 / 胡须：更松散或更有方向
+翅膀 / 帽檐：略蓬松
+小配件：更紧密、更清晰
+这是最关键的全局规则之一。
+
+MR-03 边缘是柔软的，但不是模糊失焦的
+正确状态：
+
+softly rounded edges
+gentle felt thickness
+slight fuzzy contour
+错误状态：
+
+完全糊成一团
+或者像塑料模具一样过锐
+MR-04 浅色表面也要保留纹理
+白色 / 米白色很容易被模型“磨平”。
+应明确：
+
+fine ivory wool texture
+subtle short fibers even in white areas
+softly varied tones within cream / ivory wool
+MR-05 深色表面要避免塑料高光
+深色羊毛往往最容易被模型生成成“塑料玩具壳”。
+
+应强调：
+
+matte charcoal wool
+visible crossed fibers
+no glossy sheen
+MR-06 局部卷毛只在需要时使用
+只适合：
+
+绵羊外层
+圣诞老人胡须
+某些毛发/头发结构
+不要把卷毛层扩散到所有玩偶。
+
+MR-07 可接受混合材料，但要保持整体手工感
+允许：
+
+bead eyes
+wire glasses
+paper book pages
+woven ribbon
+但这些配件要：
+
+比例真实
+连接合理
+不喧宾夺主
+不把整体变成工业玩具感
+4B. 造型规则（Form Rules）
+FR-01 造型必须“可制作”
+高质量样本普遍都具有较好的可落地性：
+
+重心稳定
+接地点明确
+结构不过薄
+四肢不过度悬空
+大件配饰有合理连接
+FR-02 优先使用简化、清晰、圆润的体块
+羊毛毡不适合过度写实解剖。
+更合适的是：
+
+rounded body volumes
+simple readable silhouette
+compact sculpted shapes
+broad stable bases
+FR-03 面部通常简化，不靠复杂五官取胜
+高质量样本中，五官通常是：
+
+小黑眼
+轻微微笑线
+柔和鼻头
+简化脸颊
+这比真实人像五官更适合羊毛毡商品图。
+
+FR-04 配件要有“厚度”和“体积”
+比如：
+
+花瓣
+翅膀
+胡须
+帽檐
+篮子
+爱心
+小书
+腰带
+都不应只是“贴在表面的图案”。
+
+FR-05 多角色时，不要只是复制缩放
+组合图中的高质量样本说明：
+
+小号版不应只是大号版简单缩小
+应有轻微比例变化
+发型、翅膀、表情、姿势可略有差异
+材质语言保持一致即可
+FR-06 多视角商品图要保持结构连续
+正面、背面、组合图的一致性非常重要：
+
+头发从正背面都合理
+围裙系带 / 发髻 / 尾巴 / 配件位置能自洽
+不能只会生成正面，背面崩坏
+4C. 摄影规则（Photography Rules）
+PR-01 优先采用柔和自然光
+绝大多数成功样本都符合：
+
+soft diffused daylight
+window light
+gentle side light
+warm but not overly yellow
+PR-02 采用真实商品摄影常见背景
+高频背景类型有两类：
+
+A. 极简产品背景
+plain warm wall
+neutral blurred wall
+light wooden tabletop
+B. 氛围型生活方式背景
+cozy home interior
+fireplace / wreath / books / lamp
+Christmas greenery / candle / fairy lights
+PR-03 主体一定比背景更清晰
+高质量商品图一般：
+
+主体清楚
+背景轻度虚化
+不靠复杂背景抢戏
+PR-04 必须有接触阴影
+小型摆件没有接触阴影就会像漂浮 CGI。
+
+建议加入：
+
+gentle contact shadows
+grounded tabletop shadow
+physically resting on the surface
+PR-05 镜头视角接近商品本体高度
+典型视角：
+
+近距离正面
+轻微俯拍
+三分之四视角
+与玩偶大致平视
+这样能强化“真实小型商品摄影”。
+
+PR-06 背景氛围是可选模块，不是材质规则
+例如：
+
+秋季花环、壁炉
+圣诞灯光、松枝、蜡烛
+台灯与书桌
+这些是“商品场景风格”，不是“羊毛毡材质本体规则”。
+
+4D. 应避免的效果（Avoid Rules）
+这一部分非常关键。
+
+AR-01 过度光滑
+避免：
+
+plastic sheen
+ceramic finish
+silicone smoothness
+polished resin look
+AR-02 过度长毛
+避免：
+
+long plush fur
+shaggy toy fur
+over-fluffed wool
+hairy animal coat everywhere
+AR-03 机械对称与工业化轮廓
+避免：
+
+perfectly mirrored shapes
+exact duplicate figures
+rigid CAD-like outlines
+AR-04 数字渲染感
+避免：
+
+CGI character look
+3D render gloss
+airbrushed surfaces
+synthetic texture mapping
+AR-05 不可制作结构
+避免：
+
+过细悬空四肢
+完全无支撑的长花茎
+翅膀极薄无厚度
+尾巴/配饰悬浮
+身体相互融合不清
+AR-06 过度脏污 / 过度瑕疵
+你特别强调这点，非常正确。
+不应为了“真实手工”而胡乱加入：
+
+脏污污渍
+大量毛球
+夸张散毛
+明显歪斜破损
+粗暴针孔痕迹
+AR-07 错误材质混淆
+避免：
+
+把丝带做成羊毛条
+把纸页做成厚毡片
+把珠眼做成毛绒眼
+把金属眼镜做成黑色毛毡环
+五、通用英文羊毛毡提示词模板（可复用）
+这一部分回答你要求的第 4 点。
+我会给你一套模块化模板，适合接入 Codex。
+
+5.1 主模板（通用基础版）
+Create a photorealistic product photograph of {quantity} original handmade needle-felted wool {subject} figurine(s).
+
+The figurine(s) should have {overall_shape} with {proportion_style}. Keep the forms physically craftable, with stable support, believable attachment points, and gently irregular handmade silhouettes.
+
+The main body should be made from densely interlocked wool fibers, showing a soft matte felt surface, fine visible wool strands, subtle directional variation, and a restrained natural fuzzy halo. Preserve tactile wool realism without making the piece look like long plush fur.
+
+Use different wool densities for different components:
+- {component_1}: {component_1_texture}
+- {component_2}: {component_2_texture}
+- {component_3}: {component_3_texture}
+
+Important structural details:
+{structural_details}
+
+Important material details:
+{material_details}
+
+If there are accessories, make them dimensional, physically connected, and proportionally believable:
+{accessories}
+
+Place the figurine(s) on {surface_description} with {lighting_description}. Use gentle contact shadows, realistic close-up detail, and {background_style}. Keep the subject sharper than the background.
+
+The final image should resemble authentic handmade artisan craft product photography for Etsy, not a polished CGI render, plastic toy, ceramic figurine, or synthetic plush object.
+
+Avoid: glossy surfaces, exaggerated fuzz, perfect symmetry, floating parts, airbrushed color transitions, and unrealistic unsupported structures.
+5.2 变量说明（适合 Codex 参数化）
+基础变量
+{quantity}：one / two / three / a pair of
+{subject}：mouse, rabbit, angel, turtle, polar bear, Santa Claus, folk doll, puffin...
+{overall_shape}：rounded compact body / cone-shaped dress / domed shell / elongated whale form
+{proportion_style}：simplified handmade proportions / childlike proportions / compact collectible proportions
+材质变量
+{component_1_texture} 例：
+compact short-fiber felt surface
+slightly looser directional wool hair
+softly layered felt wings
+controlled curly wool beard
+visibly interwoven shell fibers
+thick felt petals with subtle fiber lines
+结构变量
+{structural_details} 例：
+broad stable base and layered apron
+short sturdy legs and raised shell sections
+separate parent and cub anatomy
+dimensional beak and attached miniature fish
+rounded paws holding a small book
+bonnet tied at the back and gathered wool hair
+配件变量
+{accessories} 例：
+a tiny basket of harvest fruits
+a red wool heart
+a miniature open paper book
+round wire glasses
+a woven ribbon at the neck
+a candy-corn accessory
+a felt flower with a curved stem
+摄影变量
+{surface_description}：
+
+a rustic wooden tabletop
+a pale natural wood table
+a woven neutral runner on a wooden table
+{lighting_description}：
+
+soft diffused window light
+warm natural side light
+calm indoor daylight with gentle falloff
+{background_style}：
+
+a softly blurred neutral wall
+a cozy handcrafted home interior
+a subtle autumn-inspired background
+a restrained Christmas-themed tabletop scene
+5.3 更稳的“真实羊毛毡强化版”模板
+这个版本更适合你追求“更稳更真实”的商品图。
+
+Create a realistic Etsy-style product photograph of {quantity} handmade needle-felted wool {subject} figurine(s), designed as a physically crafted miniature collectible.
+
+Show a compact felted core beneath the surface, with fine interlocked wool fibers, subtle crossed strands, slight directional fiber changes, softly rounded edges, and a matte non-glossy finish.
+
+Do not treat the whole figurine as uniformly fuzzy. Different parts should have different felt densities and surface behavior:
+- the main body is compact and carefully sculpted,
+- {soft_part} is slightly softer or fuller,
+- {directional_part} has directional wool fibers,
+- {structured_part} has visible dimensional felt thickness.
+
+Maintain believable handmade construction, realistic weight distribution, and stable support. All accessories must look physically attached and craftable.
+
+Use soft natural lighting, realistic grounding shadows, shallow but controlled depth of field, and a clean product-photography composition. The result should look like a real handcrafted wool-felt object photographed with a camera, not a digital illustration or a 3D render.
+
+Avoid long animal fur, glossy plastic reflections, over-sharpened digital texture, perfect symmetry, and impossible thin unsupported details.
+六、GPT Image 与 Gemini 的提示词优化建议
+这一部分回答你要求的第 5 点。
+
+6A. 适用于 GPT Image 的优化建议
+GPT Image 的优势倾向
+从经验上，GPT Image 往往更适合：
+
+理解复杂结构关系
+保持多部件之间逻辑一致
+听从较长、较明确的自然语言约束
+在商品摄影 / 场景表达上比较稳
+对 GPT Image 的写法建议
+1）可以写得更“结构化、更长”
+GPT Image 对这种多层描述通常能较好理解：
+
+主体造型
+材质分区
+配件关系
+摄影方式
+明确避免项
+2）要明确写“不同部件不同纤维密度”
+这是 GPT Image 非常值得利用的能力。
+
+例如：
+
+the beard is slightly looser and curlier than the coat
+the face is more compactly felted than the body
+the wings are layered and softly edged
+3）直接写“physically craftable”有帮助
+对于防止悬空肢体、极薄结构有帮助。
+
+4）负向约束要写成自然语言
+例如：
+
+Avoid plastic sheen and synthetic plush fur.
+Do not make the entire surface uniformly fluffy.
+Keep accessories physically connected.
+5）多角色一致性可写得更明确
+例如：
+
+from the same artisan collection
+maintain cohesive materials but slightly varied proportions
+GPT Image 推荐提示词风格
+更长、更完整、更解释性。
+
+示例风格
+“The body is densely felted, while the beard is made from slightly looser curled fibers...”
+“Keep the wings thick enough to look handmade...”
+“The flower stem must look physically supported...”
+6B. 适用于 Gemini 的优化建议
+Gemini 的常见倾向
+Gemini 在一些情况下可能会：
+
+更容易把“可爱手工”理解为“卡通装饰物”
+更容易把 wool/felt 生成得偏平滑或偏插画化
+对长 prompt 的局部细节控制有时不如 GPT Image 稳定
+所以对 Gemini，建议更短、更硬、更具体。
+
+对 Gemini 的写法建议
+1）减少抽象修辞，增加明确视觉词
+与其写：
+
+artisan warmth and tactile authenticity
+不如写：
+
+fine visible wool fibers
+soft matte felt surface
+compact body with gentle fuzzy edges
+2）关键材质词前置
+前 2～4 句就说清楚：
+
+handmade needle-felted wool
+visible short fibers
+matte, non-glossy
+physically crafted miniature
+3）避免一次塞太多摄影氛围
+Gemini 有时会被场景词带偏。
+先保住商品材质，再补背景。
+
+4）分句短、信息块清晰
+例如：
+
+Body: compact, densely felted, short visible fibers.
+Hair: directional wool strands.
+Wings: layered felt, thick edges.
+Background: soft window light, blurred neutral wall.
+5）负向控制要简洁直接
+例如：
+
+No plastic shine.
+No long plush fur.
+No CGI look.
+No floating accessories.
+Gemini 推荐提示词风格
+更短、更像“规格要求列表”。
+
+示例风格
+Handmade needle-felted wool angel figurine. Compact cone-shaped body. Fine visible wool fibers. Soft matte surface. Slight fuzzy edges. Brown directional wool hair. Layered felt wings with thick rounded edges. Small red wool heart. Physically craftable proportions. Soft daylight. Wooden tabletop. Neutral blurred background. No plastic shine, no long fur, no CGI look.
+七、5 组可实际做 A/B 测试的提示词方案
+这一部分回答你要求的第 6 点。
+重点不是“哪组一定更好”，而是哪些变量值得系统测试。
+
+测试组 1：纤维可见度强弱
+测试目标
+找到“真实手工感”和“干净商品感”的平衡点。
+
+A 版：轻纤维版
+关键词重点：
+
+compact felted surface
+fine visible fibers
+restrained fuzzy halo
+B 版：较强纤维版
+关键词重点：
+
+visibly interlocked fibers
+crossed wool strands
+slightly more pronounced fiber texture
+观察指标
+是否 still looks handmade
+是否变脏 / 杂乱
+是否出现毛绒玩具感
+是否保留商品图的“可售卖感”
+适合测试对象
+北极熊
+白鲸
+企鹅
+人物摆件
+测试组 2：统一短绒 vs 分区密度差异
+测试目标
+验证“不同部位不同毡化密度”是否显著提升真实性。
+
+A 版：统一材质描述
+entire figurine has a compact felted wool surface
+B 版：分区材质描述
+body compact felt
+beard softer and curlier
+hair directional
+trim slightly fuller
+accessories tightly felted
+观察指标
+是否更有层次
+是否更像真实手工
+是否更少 CGI 同质化
+适合测试对象
+圣诞老人
+天使
+南瓜老鼠
+读书老鼠
+测试组 3：极简背景 vs 生活方式场景
+测试目标
+确定 Etsy 商品图中，哪些商品更适合纯产品背景，哪些适合氛围场景。
+
+A 版：极简产品图
+wooden tabletop
+neutral blurred wall
+soft daylight
+B 版：生活方式场景
+cozy home setting / seasonal decor / holiday decor
+controlled depth of field
+soft contextual props
+观察指标
+主体材质是否更清楚
+商品点击率潜力（主观）
+背景是否喧宾夺主
+适合测试对象
+秋季摆件
+圣诞老人
+读书老鼠
+天使 / 动物单品
+测试组 4：更强调“physically craftable”是否减少结构错误
+测试目标
+检验“可制作性约束”是否能减少悬空、过细结构和不合理连接。
+
+A 版：普通描述
+handmade felt figurine with wings / flower / accessories
+B 版：加强可制作性
+physically craftable miniature
+stable support
+believable attachment points
+thick felt edges
+realistic structural support
+观察指标
+是否减少漂浮配件
+是否减少过细花茎 / 过薄翅膀
+是否更像真实商品
+适合测试对象
+天使
+兔子与花
+海鹦叼鱼
+蜥蜴
+测试组 5：写“real wool fibers” vs 写“needle-felted construction”
+测试目标
+判断模型更吃“材质词”还是“工艺词”。
+
+A 版：材质导向
+fine visible wool fibers
+interlocked strands
+matte wool texture
+B 版：工艺导向
+carefully needle-felted
+sculpted felt components
+compact felted core
+layered wool construction
+观察指标
+哪一版更接近真实 Etsy 羊毛毡
+哪一版更少塑料/橡胶感
+哪一版更少“普通毛绒玩具感”
+适合测试对象
+全品类通测
+八、适合 Codex 集成的结构化规则文档
+这一部分回答你要求的第 7 点。
+我会尽量用“程序可映射”的形式写。
+
+8.1 规则对象结构（建议）
+felt_style_library:
+  version: "1.0"
+  domain: "etsy_needle_felt_product_images"
+  source_sample_count: 17
+  notes:
+    - "Contains some multi-view and multi-item variants from the same product families."
+    - "Rules are visually inferred, not guaranteed production facts."
+    - "Prompts are not yet fully validated by systematic generation tests."
+
+  global_principles:
+    - "Needle-felt realism comes from controlled visible fibers, not maximum fuzz."
+    - "Different parts should have different felt densities."
+    - "Shapes must look physically craftable."
+    - "Photography should resemble real handmade product photography, not CGI."
+
+  material_rules:
+    default_surface:
+      description: "Compact felted core with fine visible wool fibers and matte finish."
+      keywords:
+        - "densely interlocked wool fibers"
+        - "fine visible wool strands"
+        - "soft matte felt surface"
+        - "subtle natural fuzz"
+        - "gentle fuzzy halo"
+    part_density_variation:
+      description: "Different components may have different wool density and fiber behavior."
+      examples:
+        body: "compact and sculpted"
+        hair: "directional strands"
+        beard: "slightly looser curled fibers"
+        wings: "layered felt"
+        shell: "raised felted sections"
+    curly_layer:
+      use_only_for:
+        - "sheep fleece"
+        - "Santa beard"
+      avoid_global_use: true
+    white_surface_rule:
+      description: "Even white or ivory parts must retain subtle short-fiber texture."
+    dark_surface_rule:
+      description: "Dark felt should remain matte and fibrous, not glossy."
+
+  form_rules:
+    silhouette:
+      - "rounded"
+      - "simple"
+      - "readable"
+      - "physically stable"
+    support:
+      - "stable base"
+      - "believable attachment points"
+      - "no impossible thin unsupported parts"
+    accessories:
+      - "dimensional"
+      - "physically connected"
+      - "proportional"
+    multi_character:
+      - "same material family"
+      - "not simple scale duplicates"
+      - "allow slight proportion changes"
+
+  photography_rules:
+    lighting:
+      - "soft diffused daylight"
+      - "window light"
+      - "gentle side light"
+    staging:
+      minimal:
+        - "wooden tabletop"
+        - "neutral background"
+      lifestyle:
+        - "cozy home"
+        - "seasonal decor"
+        - "holiday decor"
+    focus:
+      - "subject sharper than background"
+      - "controlled shallow depth of field"
+      - "gentle contact shadows"
+
+  avoid_rules:
+    - "plastic sheen"
+    - "ceramic smoothness"
+    - "rubber look"
+    - "uniform long plush fur"
+    - "perfect symmetry"
+    - "airbrushed digital surfaces"
+    - "floating accessories"
+    - "impossible structural thinness"
+    - "excessive dirt or fake handmade damage"
+
+  prompt_modules:
+    subject:
+      examples: ["mouse", "rabbit", "angel", "turtle", "Santa Claus", "polar bear"]
+    structure:
+      examples:
+        - "compact rounded body"
+        - "cone-shaped dress"
+        - "domed segmented shell"
+        - "layered wings"
+    material:
+      examples:
+        - "fine visible wool fibers"
+        - "compact felted core"
+        - "directional wool hair"
+        - "curly wool beard"
+    staging:
+      examples:
+        - "rustic wooden tabletop"
+        - "neutral blurred wall"
+        - "soft window light"
+        - "cozy seasonal background"
+
+8.2 提示词组装逻辑（建议）
+可以让 Codex 采用如下拼接顺序：
+
+Prompt Assembly Order
+商品类型 / 主体
+造型结构
+材质基础
+局部部件材质差异
+配件与连接关系
+摄影环境
+负向限制
+8.3 建议的字段设计
+prompt_input_schema:
+  subject_type: "animal | human | seasonal_character | fantasy"
+  subject_name: "e.g. mouse, angel, turtle"
+  quantity: "single | pair | group"
+  pose: "standing | seated | side_view | front_view | rear_view"
+  base_shape: "rounded | cone | elongated | domed"
+  fiber_density_main: "compact | medium_visible | curly_overlay"
+  fiber_density_secondary: "compact | directional | looser | layered"
+  accessories:
+    - name: "book"
+      material_type: "paper"
+      support_required: true
+    - name: "glasses"
+      material_type: "wire"
+      support_required: true
+  photography_style: "minimal | lifestyle | seasonal"
+  season_theme: "none | autumn | christmas"
+  background_complexity: "low | medium"
+  realism_strength: "clean_realistic | visibly_handmade"
+
+九、最终通用英文模板（推荐给 Etsy AI Studio 直接作为基础模板）
+如果你只想要一条“最通用、最稳妥”的英文基础模板，我建议用下面这条，再用变量填充。
+
+Create a photorealistic Etsy-style product photograph of {quantity} original handmade needle-felted wool {subject} figurine(s).
+
+The figurine should have {overall_shape} with simplified, physically craftable proportions and a stable handmade structure. The main body is formed from a compact felted core with fine visible wool fibers, a soft matte surface, slight directional variation, and a restrained natural fuzzy halo.
+
+Do not make the whole surface uniformly fluffy. Different parts should show different felt densities:
+{component_density_block}
+
+Important structural details:
+{structure_block}
+
+Important accessories:
+{accessory_block}
+All accessories must be dimensional, physically connected, and believable for a real handmade miniature.
+
+Place the figurine on {surface_block} with {lighting_block}. Use gentle contact shadows, realistic close-up detail, and {background_block}. Keep the subject sharper than the background.
+
+The result should resemble authentic handcrafted wool-felt artisan product photography for Etsy, not a polished CGI render, plastic toy, ceramic figurine, or synthetic plush object.
+
+Avoid glossy surfaces, exaggerated fuzz, long fur, perfect symmetry, floating parts, airbrushed digital texture, and impossible unsupported structures.
+十、给你一个更实用的落地建议
+如果你接下来真的要把这套东西放进 Etsy AI Studio，我建议你不要只做“一个大模板”，而要做成 三层体系：
+
+第 1 层：通用骨架模板
+解决：
+
+看起来像羊毛毡
+看起来像 Etsy 商品图
+第 2 层：材质分型模板
+至少分为：
+
+Compact Felt Type
+适合：企鹅、白鲸、北极熊、人物、兔子
+
+Directional Fiber Type
+适合：头发、胡须、龟壳局部、叶片、花瓣
+
+Curly Overlay Type
+适合：绵羊、圣诞胡须
+
+Layered Component Type
+适合：翅膀、裙装、花瓣、龟壳、帽檐
+
+第 3 层：商品场景模板
+至少分为：
+
+极简产品图
+家居氛围图
+秋季节庆图
+圣诞节庆图
+书房故事感图
+这样比“一个 prompt 统治所有商品”更容易出稳定结果。
+
+十一、最终结论（可作为规则库摘要）
+如果要把这 17 张样本浓缩成一段给团队看的摘要，我会这样写：
+
+真实高质量的羊毛毡商品图，不是靠单一的 “needle-felted + wool texture” 堆词得到的。
+它依赖于：
+(1) 压实但可见的短纤维表面，
+(2) 不同部件之间不同的毡化密度，
+(3) 简化但可制作的体块结构，
+(4) 有厚度、能连接、能落地的配件设计，
+(5) 柔和自然、主体清晰的 Etsy 商品摄影方式。
+同时要严格避免：塑料高光、过度长毛、CGI 同质化、机械对称以及不可制作的悬空结构。
+
+如果你愿意，我下一步可以继续帮你做两件非常实用的事：
+
+把这份规则库直接改写成一份更“工程化”的 JSON / YAML 配置文件，方便 Codex 直接调用。
+基于这套规则，给你做一批“可直接投入测试”的成品 prompt 包（比如动物类 20 条、人物类 20 条、节庆类 20 条）。

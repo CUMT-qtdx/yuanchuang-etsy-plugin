@@ -1,0 +1,7 @@
+node_modules/
+lib/
+.etsy-test/
+.*-preview/
+*.tgz
+*.log
+.DS_Store

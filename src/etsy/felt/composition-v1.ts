@@ -1,0 +1,9 @@
+import type { PhotographySettings } from './photography-v1.ts'
+export const COMPOSITION_VERSION = '1.0'
+export const occupancyPresets = [{ ratio: 0.45, label: '小 · 45%' }, { ratio: 0.6, label: '标准 · 60%' }, { ratio: 0.75, label: '近景 · 75%' }, { ratio: 0.85, label: '细节 · 85%' }] as const
+export function compositionBlock(settings: PhotographySettings): string {
+  const frame = settings.aspect_ratio === 'auto' ? 'Use the requested output aspect ratio without distorting the subject.' : `Output aspect ratio: ${settings.aspect_ratio}.`
+  if (settings.framing_policy === 'preserve_reference') return `${frame} Preserve the original camera framing and the complete subject's size within the frame. Keep its internal proportions, face, pose and accessories unchanged. Do not independently shrink the head, hat, limbs or body.`
+  const percent = Math.round(settings.subject_height_ratio * 100)
+  return `${frame} The complete product should occupy approximately ${percent}% of total image height. This is an approximate composition target, not a pixel guarantee. Adjust camera distance and surrounding real space, not anatomy or internal character proportions. Keep the entire subject visible, horizontally centered unless the user specifies otherwise, with natural space above and around it and a grounded base near the lower part of the frame. Do not crop hats, ears, tails, wings or accessories. For wide animals and groups, fit the full width as well; the whole group bounding extent is the subject. Reduce overall occupancy if needed to avoid clipping. Perspective, support-surface scale and shadows must change coherently, never a mechanically resized cutout. Original-reference framing or scale instructions do not override this selected occupancy; preserve identity, facial features, pose, clothing, colours and accessories instead.`
+}

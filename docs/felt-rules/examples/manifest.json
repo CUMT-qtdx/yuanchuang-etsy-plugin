@@ -1,0 +1,38 @@
+[
+  {
+    "name": "natural-tabletop-60",
+    "label": "自然木桌 · 主体60% · 1:1",
+    "photography": {
+      "photography_preset": "natural-tabletop",
+      "subject_height_ratio": 0.6,
+      "aspect_ratio": "1:1",
+      "framing_policy": "override_reference",
+      "preserve_background": false
+    },
+    "modules": {
+      "needle_felt_v1_0": "1.0",
+      "felt_photography_v1_0": "1.0",
+      "felt_composition_v1_0": "1.0"
+    },
+    "adapter": "gpt-image",
+    "characters": 5791
+  },
+  {
+    "name": "preserve-original",
+    "label": "保留原背景与原构图 · 自动画幅",
+    "photography": {
+      "photography_preset": "preserve-original",
+      "subject_height_ratio": 0.6,
+      "aspect_ratio": "auto",
+      "framing_policy": "preserve_reference",
+      "preserve_background": true
+    },
+    "modules": {
+      "needle_felt_v1_0": "1.0",
+      "felt_photography_v1_0": "1.0",
+      "felt_composition_v1_0": "1.0"
+    },
+    "adapter": "gpt-image",
+    "characters": 4790
+  }
+]

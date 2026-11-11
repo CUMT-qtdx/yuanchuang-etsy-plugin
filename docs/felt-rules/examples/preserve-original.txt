@@ -1,0 +1,25 @@
+Use the supplied two-dimensional blue-hat boy as the sole subject reference. Reconstruct the same complete character as a physically plausible three-dimensional needle-felted collectible. Keep the blue hat, red scarf, exact face and expression, pose, colour placement, clothing, accessories and internal body proportions. Preserve the number and position of every existing feature. Add only the depth and thickness necessary to turn the same flat design into a physical object.
+
+[NEEDLE_FELT_RULES:v1.0;adapter=gpt-image;stage=generation]
+SUBJECT / REFERENCE PRIORITY: User-specified silhouette, face, pose, colours, clothing, accessories, quantity and surface motifs are hard constraints. Material treatment must not redesign them. Apply component rules only to parts already present or explicitly requested; never add a part, prop or ornament merely because a rule names it. Explicit user instructions outrank stylistic defaults.
+USER REQUIREMENTS: Only change the material and add plausible sculptural depth. Preserve the original background, source camera framing, relative subject size, face, pose, colours, clothing and accessories.
+TASK: Convert the 2D design into a plausible three-dimensional needle-felted object. Preserve the locked design, face, pose, palette and ornament; add depth and component thickness without inventing new features.
+MATERIAL: Default to a compact needle-felted core, densely interlocked short wool fibers, fine visible crossed strands, soft matte light scattering, restrained natural fuzz and a subtle fiber halo. Realism comes from compact volume plus micro-fibers, not maximum fluff.
+Use different felting densities for different existing components; never cover the entire object with one uniform fuzzy texture.
+Keep softly rounded, readable edges and believable felt thickness. A gently softened fiber contour must not become blur or rigid mold-cut outlines.
+Preserve explicitly present mixed-material accessories and their original material identity; keep proportions and physical connections believable. Small highlights belong only to appropriate beads or metal, not to felt surfaces.
+Respect the approved shape and facial features. Within that shape, use readable compact sculpted volumes, believable thickness, supported attachments and stable contact points. Do not alter locked anatomy, pose or facial detail merely to simplify it.
+Retain subtle hand-shaped variation where allowed, without distorting requested symmetry, expression, alignment or approved product identity.
+Existing white, cream and ivory regions retain visible short fibers and subtle tonal variation; do not smooth them into featureless plastic.
+Existing black and dark regions remain matte with a fine crossed fiber network, not glossy toy shells.
+COMPONENT DENSITY (only existing/requested parts):
+Existing body: dense, compact short-fiber felt, clear sculpted volume and a restrained micro-fiber surface.
+Existing face and limbs: finely compacted felt; preserve every facial landmark and proportion, with clean readable edges.
+Existing felt clothing: compact matte felt distinct from skin and hair, readable folds and layered hems; retain colour blocks, patterns and garment construction.
+Existing wool trim or hat brim: slightly fuller than the compact core with softly rounded felt thickness, never uncontrolled long fur.
+PHYSICAL STRUCTURE: For newly designed multi-character sets, use cohesive materials and restrained individual variation rather than scale-cloned figures, only where the user permits it. Never alter a locked count, symmetry or approved proportions.
+[felt_photography_v1_0] Preserve the source background, supporting surface, lighting direction and environment. Do not introduce a tabletop, props or a new scene. Integrate changed felt surfaces with the existing light and shadows.
+[felt_composition_v1_0] Use the requested output aspect ratio without distorting the subject. Preserve the original camera framing and the complete subject's size within the frame. Keep its internal proportions, face, pose and accessories unchanged. Do not independently shrink the head, hat, limbs or body.
+AVOID: Avoid plastic, ceramic, silicone, polished-resin or CGI sheen on felt; airbrushed smoothness; synthetic uniform fur; global long plush hair; oversharpened texture; floating or fused attachments; impossible unsupported thinness; artificial dirt, pilling, damage or coarse needle holes. Do not turn ribbons into wool strips, paper into felt, beads into fur, or wire glasses into felt rings.
+Priority order: explicit user instructions; locked subject identity; selected photography/composition; felt material defaults; automatic scene styling. These are visual rendering rules, not evidence of real materials, manufacturing or safety.
+[/NEEDLE_FELT_RULES]
