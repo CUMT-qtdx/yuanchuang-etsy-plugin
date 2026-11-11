@@ -40,7 +40,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1080 }, acceptDownloads: true }); page.on('pageerror', e => errors.push(e.message))
   await page.goto(`http://127.0.0.1:${server.address().port}`)
   await page.getByText('元创 Etsy Studio', { exact: true }).waitFor()
-  assert.match(await page.locator('[data-studio-version]').innerText(), /2\.0\.0-etsy\.6/)
+  assert.match(await page.locator('[data-studio-version]').innerText(), /2\.0\.0-etsy\.7/)
   assert.equal(await page.getByLabel('材质规则', { exact: true }).count(), 0, '材质版本下拉已移除')
   assert.match(await page.locator('[data-felt-material-default]').innerText(), /针刺羊毛毡/)
   assert.equal(f.counts.generation, 0, '仅查看界面不能触发生图')
