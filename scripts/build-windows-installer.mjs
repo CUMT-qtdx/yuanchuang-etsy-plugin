@@ -16,6 +16,9 @@ const version = packageJson.version
 if (!/^\d+\.\d+\.\d+-etsy\.\d+$/.test(version)) throw new Error('版本号必须采用 2.0.0-etsy.8 格式')
 const output = path.resolve(option('--output') || path.join(root, 'out/windows-installer'))
 const dependenciesRoot = path.resolve(option('--dependencies-root') || root)
+const npmCli = path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js')
+// 使用 npm 自带的 tar 库，避免 Windows 系统 tar 依赖当前区域设置而拒绝中文路径。
+const tar = createRequire(npmCli)('tar')
 const stage = await fs.mkdtemp(path.join(os.tmpdir(), 'yuanchuang-installer-'))
 const sha = bytes => createHash('sha256').update(bytes).digest('hex')
 const run = (file, params, cwd = root) => execFileSync(file, params, { cwd, encoding: 'utf8', windowsHide: true, maxBuffer: 32 * 1024 * 1024 })
@@ -23,18 +26,16 @@ await fs.mkdir(output, { recursive: true })
 try {
   let originalPackage = option('--package')
   if (!originalPackage) {
-    const npmCli = path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js')
     const packed = JSON.parse(run(process.execPath, [npmCli, 'pack', '--ignore-scripts', '--json', '--pack-destination', stage]))
     originalPackage = path.join(stage, packed[0].filename)
   }
   originalPackage = path.resolve(originalPackage)
-  const packedVersion = JSON.parse(run('tar.exe', ['-xOzf', originalPackage, 'package/package.json'])).version
-  if (packedVersion !== version) throw new Error('插件发布包与源码版本不一致')
   const unpacked = path.join(stage, 'unpacked')
   await fs.mkdir(unpacked)
-  run('tar.exe', ['-xzf', originalPackage, '-C', unpacked])
+  await tar.x({ file: originalPackage, cwd: unpacked, strict: true })
   const pkg = path.join(unpacked, 'package')
   const manifest = JSON.parse(await fs.readFile(path.join(pkg, 'package.json'), 'utf8'))
+  if (manifest.version !== version) throw new Error('插件发布包与源码版本不一致')
   const vendors = new Map()
   async function collect(name, parent) {
     const require = createRequire(path.join(parent, 'package.json'))
@@ -75,7 +76,7 @@ try {
   await fs.mkdir(payload)
   const packageName = `dickpy-dsh-imagegen-${version}-offline.tgz`
   const bundle = path.join(payload, packageName)
-  run('tar.exe', ['-czf', bundle, '-C', unpacked, 'package'])
+  await tar.c({ file: bundle, cwd: unpacked, gzip: true, portable: true }, ['package'])
   const files = {}
   for (const name of await fs.readdir(path.join(pkg, 'lib'))) {
     if (/^[A-Za-z0-9_.-]+\.js$/.test(name)) files[`lib/${name}`] = sha(await fs.readFile(path.join(pkg, 'lib', name)))

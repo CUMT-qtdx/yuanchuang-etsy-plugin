@@ -4,9 +4,11 @@ import path from 'node:path'
 import os from 'node:os'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { spawnSync, execFileSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 const root = fileURLToPath(new URL('../', import.meta.url))
+const tar = createRequire(path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js'))('tar')
 const folder = process.argv[2] || path.join(root, 'out/windows-installer')
 const report = JSON.parse(await fs.readFile(path.join(folder, 'installer-manifest.json'), 'utf8'))
 const exe = path.join(folder, report.exe)
@@ -30,7 +32,7 @@ try {
   assert.equal(sha(await fs.readFile(path.join(unpacked, manifest.package))), manifest.sha256)
   const unpackedPackage = path.join(temp, 'package')
   await fs.mkdir(unpackedPackage)
-  execFileSync('tar.exe', ['-xzf', path.join(unpacked, manifest.package), '-C', unpackedPackage])
+  await tar.x({ file: path.join(unpacked, manifest.package), cwd: unpackedPackage, strict: true })
   for (const [name, hash] of Object.entries(manifest.files)) assert.equal(sha(await fs.readFile(path.join(unpackedPackage, 'package', name))), hash)
   for (const [name, version] of Object.entries(manifest.bundledDependencies)) {
     const metadata = JSON.parse(await fs.readFile(path.join(unpackedPackage, 'package/node_modules', name, 'package.json'), 'utf8'))
