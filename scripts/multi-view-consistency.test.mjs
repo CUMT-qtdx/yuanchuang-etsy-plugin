@@ -54,7 +54,7 @@ test('独立规则在GPT/Gemini/Grok中均不包含改款/转换与通用材质�
   }
 })
 
-test('左→右→背仍逐图等待检查，AI通过不会自动作为后图参考，忽略探索区设置', async t => {
+test('左→右→背仍逐图等待检查，摄影跟随主图，分辨率采用本次明确选择', async t => {
   const calls = [], events = []; let releaseLeft, checkingLeft = false
   const gate = new Promise(resolve => { releaseLeft = resolve }); t.after(() => releaseLeft())
   const f = await setup(t, { generate: async request => {
@@ -79,7 +79,7 @@ test('左→右→背仍逐图等待检查，AI通过不会自动作为后图参
   assert.deepEqual(calls.map(request => request.images.length), [1, 1, 0])
   for (const request of calls) {
     assert.equal(request.feltContext.multiView.references[0].id, original.id)
-    assert.equal(request.size, '1:1'); assert.equal(request.quality, '4k')
+    assert.equal(request.size, '1:1'); assert.equal(request.quality, '1k')
     assert.equal(request.feltContext.photography.subject_height_ratio, 0.6)
     assert.equal(request.feltContext.photography.photography_preset, 'custom')
   }

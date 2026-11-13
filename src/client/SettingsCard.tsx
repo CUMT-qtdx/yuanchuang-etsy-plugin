@@ -1430,7 +1430,7 @@ function ChannelEditor(props: {
   }
 
   const detect = (): void => {
-    if (channel.apiUrlFull && resolveChannelProtocol(channel.apiUrl, channel.protocol) !== 'chat-completions') return
+    if (channel.apiUrlFull && resolveChannelProtocol(channel.apiUrl, channel.protocol) === 'images') return
     setDetecting(true)
     setDetectError(null)
     const payload: Record<string, unknown> = {
@@ -1455,7 +1455,7 @@ function ChannelEditor(props: {
   useEffect(() => {
     if (autoDetected.current) return
     autoDetected.current = true
-    if (!subscriptionMode && (!channel.apiUrlFull || resolveChannelProtocol(channel.apiUrl, channel.protocol) === 'chat-completions') && channel.apiUrl.trim() !== '' && (props.keyHeld || keyDraft.trim() !== '')) detect()
+    if (!subscriptionMode && (!channel.apiUrlFull || resolveChannelProtocol(channel.apiUrl, channel.protocol) !== 'images') && channel.apiUrl.trim() !== '' && (props.keyHeld || keyDraft.trim() !== '')) detect()
   }, [])
 
   const addManual = (): void => {
@@ -1590,10 +1590,11 @@ function ChannelEditor(props: {
               <option value="auto">{t('channels.protocolAuto')}</option>
               <option value="images">{t('channels.protocolImages')}</option>
               <option value="chat-completions">{t('channels.protocolChat')}</option>
+              <option value="gemini-native">{t('channels.protocolGemini')}</option>
             </Select>
           </div>
         </div>
-        <p className={css.fieldHint}>{t('channels.protocolHint')}</p>
+        <p className={css.fieldHint}>{t(channel.protocol === 'gemini-native' ? 'channels.protocolGeminiHint' : 'channels.protocolHint')}</p>
         <label className={css.checkboxRow}>
           <input type="checkbox" checked={channel.apiUrlFull} disabled={!props.writable} onChange={event => { props.onPatch({ apiUrlFull: event.target.checked }) }} />
           <span>{t('channels.apiUrlFull')}</span>
@@ -1642,7 +1643,7 @@ function ChannelEditor(props: {
         <div className={css.modelCatalog}>
         <div className={css.editorSectionHeader}>
           <h4 className={css.label}>{t('channels.modelCatalogTitle')}</h4>
-          <button type="button" className={css.modelFetch} disabled={!props.writable || detecting || (channel.apiUrlFull && resolveChannelProtocol(channel.apiUrl, channel.protocol) !== 'chat-completions')} onClick={detect}>
+          <button type="button" className={css.modelFetch} disabled={!props.writable || detecting || (channel.apiUrlFull && resolveChannelProtocol(channel.apiUrl, channel.protocol) === 'images')} onClick={detect}>
             {detecting ? t('channels.detecting') : candidates === null && channel.models.length === 0 ? t('channels.detectFirst') : t('channels.detect')}
           </button>
         </div>

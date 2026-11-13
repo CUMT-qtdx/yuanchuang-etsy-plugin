@@ -8,7 +8,7 @@
 export const IMAGEGEN_SETTINGS_NAMESPACE = 'dsh-imagegen'
 
 /** Published package version shared by the host updater and the client UI. */
-export const PLUGIN_VERSION = '2.0.0-etsy.8'
+export const PLUGIN_VERSION = '2.0.0-etsy.9'
 
 /** Same-origin route family (loopback-only, mirroring the dsh-ssh fence). */
 export const SETTINGS_API = {
@@ -27,7 +27,7 @@ export const SUBSCRIPTION_PROVIDERS = ['chatgpt-sub', 'grok-sub', 'google-sub', 
 export type SubscriptionProvider = typeof SUBSCRIPTION_PROVIDERS[number]
 
 /** Transport protocol a channel uses to reach its gateway. */
-export type ChannelProtocol = 'images' | 'chat-completions'
+export type ChannelProtocol = 'images' | 'chat-completions' | 'gemini-native'
 
 /** Stored preference: auto keeps old channels on images unless the URL is explicit. */
 export type ChannelProtocolPreference = 'auto' | ChannelProtocol
@@ -45,12 +45,19 @@ export function isChatCompletionsUrl(value: string): boolean {
 
 /** Whether a stored value is one of the accepted protocol preferences. */
 export function isChannelProtocolPreference(value: unknown): value is ChannelProtocolPreference {
-  return value === 'auto' || value === 'images' || value === 'chat-completions'
+  return value === 'auto' || value === 'images' || value === 'chat-completions' || value === 'gemini-native'
+}
+
+/** 只有明确的原生接口地址才自动识别，不按模型名改变现有渠道。 */
+export function isGeminiNativeUrl(value: string): boolean {
+  try { return /\/models\/[^/]+:generateContent\/?$/.test(new URL(value.trim()).pathname) }
+  catch { return false }
 }
 
 /** Resolve a channel preference without changing legacy behavior by default. */
 export function resolveChannelProtocol(apiUrl: string, preference: ChannelProtocolPreference | undefined = 'auto'): ChannelProtocol {
-  if (preference === 'images' || preference === 'chat-completions') return preference
+  if (preference === 'images' || preference === 'chat-completions' || preference === 'gemini-native') return preference
+  if (isGeminiNativeUrl(apiUrl)) return 'gemini-native'
   return isChatCompletionsUrl(apiUrl) ? 'chat-completions' : 'images'
 }
 

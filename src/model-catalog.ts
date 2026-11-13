@@ -113,6 +113,7 @@ export function promptCharLimit(model: string): number | null {
 
 /** Official Gemini image ids served by Nano Banana gateways. */
 const NANOBANANA_GEMINI_IDS = new Set([
+  'gemini-nano-banana-2.1',
   'gemini-3-pro-image',
   'gemini-3-pro-image-preview',
   'gemini-3.1-flash-image',

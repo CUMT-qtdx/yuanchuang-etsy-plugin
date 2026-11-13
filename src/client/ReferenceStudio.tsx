@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { PLUGIN_VERSION, type GenerateRequest } from '../protocol.ts'
+import { PLUGIN_VERSION, type ChannelConfig, type GenerateRequest } from '../protocol.ts'
 import { ETSY_API, type EtsyCopy, type EtsyProduct, type ProductFacts, type ProductImage, type ProductType, type CreationTask } from '../etsy/types.ts'
 import { etsyCall, EtsyRouteError } from './etsy-api.ts'
 import { readLocalNames, writeLocalName, clearLocalName, withLocalName } from './creation-names.ts'
@@ -9,6 +9,7 @@ import { listingText } from '../etsy/listing-text.ts'
 import { creativityOptions, creativityMode, referenceGenerationPrompt } from '../etsy/design-strategy.ts'
 import { DesignReferences, type ReferenceDraft } from './DesignReferences.tsx'
 import { PhotographyControls } from './PhotographyControls.tsx'
+import { REFERENCE_RESOLUTION_KEY, referenceResolution, referenceResolutions, referenceModelOnly1K, referenceResolutionIssue, type ReferenceResolution } from './reference-resolution.ts'
 import { CURRENT_MATERIAL } from '../etsy/felt/material-v1-0-2.ts'
 import { defaultPhotography, normalizePhotography, type PhotographySettings } from '../etsy/felt/photography-options.ts'
 import { FinalDesignPanel } from './FinalDesignPanel.tsx'
@@ -27,13 +28,24 @@ const newProjectKey = '__new__'
 const stageText: Record<string, string> = { queued: '等待中', running: '生成中', completed: '已完成', failed: '未成功', unknown: '需核对', cancelled: '已取消', skipped: '未执行' }
 const asset = (product: EtsyProduct, file: string): string => `${ETSY_API}/image?id=${encodeURIComponent(product.id)}&file=${encodeURIComponent(file)}`
 async function asDataUrl(blob: Blob): Promise<string> { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('图片读取失败')); reader.readAsDataURL(blob) }) }
-export function ReferenceStudio(props: { request: () => GenerateRequest; onAdvanced: () => void; historyHost?: HTMLElement | null; onModelsSaved?: (image: ModelPickerValue) => Promise<void> }): React.JSX.Element {
+export function ReferenceStudio(props: { request: () => GenerateRequest; channels?: readonly ChannelConfig[]; onAdvanced: () => void; historyHost?: HTMLElement | null; onModelsSaved?: (image: ModelPickerValue) => Promise<void> }): React.JSX.Element {
   const [facts, setFacts] = useState<ProductFacts>(() => { try { return { ...blank, ...JSON.parse(localStorage.getItem('etsy-reference-facts') || '{}') } } catch { return blank } })
   const [referenceDraft, setReferenceDraft] = useState<ReferenceDraft[]>(), [notes, setNotes] = useState('')
   const [count, setCount] = useState(4), [task, setTask] = useState<CreationTask>('redesign'), [copyTiming, setCopyTiming] = useState<'all' | 'selected'>('selected')
+  const [resolution, setResolution] = useState<ReferenceResolution>(() => {
+    try { return referenceResolution(localStorage.getItem(REFERENCE_RESOLUTION_KEY), referenceResolution(props.request().quality)) }
+    catch { return '2k' }
+  })
+  const currentRequest = props.request()
+  const currentChannel = props.channels?.find(channel => channel.id === currentRequest.channelId)
+  const wireModel = currentChannel?.models.find(model => model.alias === currentRequest.model)?.id ?? currentRequest.upstream ?? currentRequest.model
+  const only1K = referenceModelOnly1K(wireModel)
+  const resolutionIssue = referenceResolutionIssue({ ...currentRequest, quality: resolution }, props.channels)
+  useEffect(() => { try { localStorage.setItem(REFERENCE_RESOLUTION_KEY, resolution) } catch { /* 存储不可用时，本页选择仍生效。 */ } }, [resolution])
+  useEffect(() => { if (only1K && resolution !== '1k') setResolution('1k') }, [only1K, resolution])
   const [photography, setPhotography] = useState<PhotographySettings>(() => { const defaults = defaultPhotography(); try { const size = props.request().size; return { ...defaults, aspect_ratio: size !== 'auto' ? size : defaults.aspect_ratio } } catch { return defaults } })
   const photoTouched = useRef(false)
-  const generationRequest = (): GenerateRequest => ({ ...props.request(), size: photography.aspect_ratio, photography, materialPreset: CURRENT_MATERIAL })
+  const generationRequest = (): GenerateRequest => ({ ...props.request(), quality: resolution, size: photography.aspect_ratio, photography, materialPreset: CURRENT_MATERIAL })
   const [creativity, setCreativity] = useState('balanced'), [autoCheck, setAutoCheck] = useState(true), [maxCalls, setMaxCalls] = useState(100)
   const [products, setProducts] = useState<EtsyProduct[]>([]), [id, setId] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const [nameNotice, setNameNotice] = useState('')
@@ -54,8 +66,11 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; onAdvan
   const chosen = product?.images.find(image => image.id === product.selectedImageId) ?? product?.images.find(image => image.generation.status === 'completed')
   // 切换图片或重开项目时，以当前版本的摄影快照为准，避免继续精修时退回初始背景。
   useEffect(() => {
-    if (chosen) setPhotography(normalizePhotography(chosen.visualRules?.photography ?? product?.photography, defaultPhotography(product?.creationTask, true)))
-  }, [chosen?.id, product?.id])
+    if (chosen) {
+      setPhotography(normalizePhotography(chosen.visualRules?.photography ?? product?.photography, defaultPhotography(product?.creationTask, true)))
+      setResolution(only1K ? '1k' : referenceResolution(chosen.renderSettings?.quality ?? product?.request.quality))
+    }
+  }, [chosen?.id, product?.id, only1K])
   const references: ReferenceDraft[] = referenceDraft ?? product?.referenceFiles.map((file, index) => ({ src: asset(product, file), name: `参考图${index + 1}`, role: product.designReferences?.[index]?.role ?? (index === 0 ? 'subject' : 'detail'), note: product.designReferences?.[index]?.note ?? '' })) ?? []
   const minimumCalls = 1 + count * (1 + (autoCheck ? 1 : 0) + (copyTiming === 'all' ? 1 : 0))
   useEffect(() => { try { localStorage.setItem('etsy-reference-facts', JSON.stringify(facts)) } catch { /* 模板保存失败不影响宿主结果。 */ } }, [facts])
@@ -92,7 +107,7 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; onAdvan
           if (recent) { currentId.current = recent.id; setId(recent.id); setFacts(structuredClone(recent.facts)); setCreativity(recent.creativity ?? 'balanced') }
         }
         const active = list.find(product => product.id === currentId.current)
-        if (firstRefresh && active) { setFacts(structuredClone(active.facts)); setCreativity(active.creativity ?? 'balanced'); setTask(active.creationTask ?? 'redesign'); setCount(active.referencePlan?.plans.length ?? 4); setCopyTiming(active.copyTiming ?? 'all'); setPhotography(normalizePhotography(active.photography, defaultPhotography(active.creationTask, true))); photoTouched.current = !!active.photography }
+        if (firstRefresh && active) { setFacts(structuredClone(active.facts)); setCreativity(active.creativity ?? 'balanced'); setTask(active.creationTask ?? 'redesign'); setCount(active.referencePlan?.plans.length ?? 4); setCopyTiming(active.copyTiming ?? 'all'); setResolution(only1K ? '1k' : referenceResolution(active.images.find(image => image.id === active.selectedImageId)?.renderSettings?.quality ?? active.request.quality)); setPhotography(normalizePhotography(active.photography, defaultPhotography(active.creationTask, true))); photoTouched.current = !!active.photography }
         firstRefresh = false
       } catch (caught) { if (!disposed) setError(caught instanceof Error ? caught.message : '项目读取失败') }
       finally { refreshing = false }
@@ -106,6 +121,7 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; onAdvan
     currentId.current = next; setId(next); setReferenceDraft(undefined); setError(''); setEditing(false); setInstruction(''); setNotes(''); setTab('titles'); setSaveState('已保存'); requestKey.current = ''
     editor.reset(); const record = products.find(product => product.id === next)
     setFacts(record ? structuredClone(record.facts) : { ...blank }); setCreativity(record?.creativity ?? 'balanced'); setTask(record?.creationTask ?? 'redesign'); setCount(record?.referencePlan?.plans.length ?? 4); setCopyTiming(record?.copyTiming ?? (record ? 'all' : 'selected')); setPhotography(normalizePhotography(record?.photography, defaultPhotography(record?.creationTask, !!record))); photoTouched.current = !!record?.photography
+    if (record) setResolution(only1K ? '1k' : referenceResolution(record.images.find(image => image.id === record.selectedImageId)?.renderSettings?.quality ?? record.request.quality))
     try { localStorage.setItem('etsy-reference-current', next || newProjectKey) } catch { /* 项目本身已保存。 */ }
   }
   const deleteProject = async (projectId: string): Promise<void> => {
@@ -134,6 +150,7 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; onAdvan
   }
   const create = async (): Promise<void> => {
     if (lock.current || dirty.current || modelSaving) return
+    if (resolutionIssue) { setError(resolutionIssue); return }
     lock.current = true; setBusy(true); setError('')
     if (!requestKey.current) requestKey.current = `reference-${crypto.randomUUID()}`
     try {
@@ -151,6 +168,10 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; onAdvan
     finally { lock.current = false; setBusy(false) }
   }
   const action = async (name: string, body: Record<string, unknown> = {}, onError?: (message: string) => void): Promise<boolean> => {
+    if (body.generation && (name === 'revise' || name === 'generate-views' || name === 'retry' && body.stage === 'generation')) {
+      const issue = referenceResolutionIssue(body.generation as GenerateRequest, props.channels)
+      if (issue) { setError(issue); onError?.(issue); return false }
+    }
     const current = productRef.current
     if (!current || lock.current) { onError?.('正在处理上一个操作，请稍候'); return false }
     if (dirty.current) { const message = '请先保存当前文案修改'; setError(message); onError?.(message); return false }
@@ -269,7 +290,14 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; onAdvan
         </aside>
       <details className={css.advanced}><summary>商品资料与高级选项</summary><p>这些资料用于文案，不能从图片猜测。没有确认的字段可留空，先生成设计草稿。</p><label>实际交付方式<select aria-label="实际交付方式" value={facts.type} onChange={event => setFacts(previous => ({ ...previous, type: event.target.value as ProductType, confirmed: false, authenticityConfirmed: false }))}><option value="unspecified">待确认（先创作设计）</option><option value="physical_felt">实物商品</option><option value="digital_illustration">数字作品</option><option value="digital_portrait">定制数字作品</option></select></label><div className={css.facts}>{(['name', 'materials', 'dimensions', 'packaging', 'processing', 'delivery', 'personalization'] as const).map((key, index) => <label key={key}>{['商品名称（可自动拟定）', '真实材料／数字媒介', '尺寸／分辨率', '包装／文件内容', '制作周期', '交付说明', '可定制项'][index]}<input aria-label={`商品资料 ${key}`} value={facts[key]} onChange={event => setFacts(previous => ({ ...previous, [key]: event.target.value }))} /></label>)}</div><div className={css.checks}><label><input type="checkbox" checked={facts.confirmed} onChange={event => setFacts(previous => ({ ...previous, confirmed: event.target.checked }))} />非空商品资料已核实</label>{facts.type === 'physical_felt' ? <label><input type="checkbox" checked={facts.authenticityConfirmed === true} onChange={event => setFacts(previous => ({ ...previous, authenticityConfirmed: event.target.checked }))} />已确认实物可制作／实际供货</label> : null}<label><input type="checkbox" checked={autoCheck} onChange={event => setAutoCheck(event.target.checked)} />后台自动检查图片</label><label>调用上限<input type="number" min={minimumCalls} max={100} aria-label="调用上限" value={maxCalls} onChange={event => setMaxCalls(Number(event.target.value))} /></label></div><label><input type="checkbox" checked={copyTiming === 'all'} onChange={event => setCopyTiming(event.target.checked ? 'all' : 'selected')} />每张自动准备文案</label><p>本轮 {count} 张预计 {minimumCalls} 次调用。默认先探索图片，确定主设计后准备文案；也可手动为任意选图准备。多角度按需单独生成。</p>{product ? <div className={css.actions}><button type="button" onClick={() => setFacts(structuredClone(product.facts))}>载入当前商品资料</button><button type="button" onClick={() => { void updateFacts() }}>保存资料并更新文案</button><button type="button" onClick={() => { void action('budget', { maxCalls }) }}>调整当前项目上限</button><span>调用额度 {product.calls.length} / {product.options.maxCalls} · 实际金额以平台账单为准</span></div> : null}{product?.images.some(image => image.visualRules) ? <details className={css.report} data-visual-rules-status=""><summary>视觉规则与实际提示词</summary><p>摄影与构图 v1.0 · 以下为已提交任务的规则快照</p>{product.images.filter(image => image.visualRules).map((image, index) => <details key={image.id}><summary>{image.angle ? `${viewAngles.find(angle => angle.value === image.angle)?.label ?? image.angle} · 多角度一致性` : `图片 ${index + 1}`} · {image.visualRules!.adapter}</summary><p>材质：{image.visualRules!.materialPreset ?? (image.visualRules!.multiView?.anchor.inheritedModules.needle_felt_v2_0 ? 'needle_felt_v2_0' : image.visualRules!.multiView?.anchor.inheritedModules.needle_felt_v1_0_2 ? 'needle_felt_v1_0_2' : 'needle_felt_v1_0')}</p><p>部件：{image.visualRules!.profile.components.join('、')}</p><pre className={css.promptSnapshot}>{image.visualRules!.prompt}</pre></details>)}</details> : null}{product?.referencePlan ? <details className={css.report}><summary>查看自动分析与提示词</summary><p>{product.referencePlan.summary}</p><p>保留：{product.referencePlan.keep.join('、')}</p>{product.referencePlan.plans.map(plan => <div key={plan.id}><h4>{plan.name}</h4><p>{referenceGenerationPrompt(product.referencePlan!, plan, creativityMode(product.creativity), product.facts.requirements)}</p></div>)}</details> : null}</details>
         </div>
-        <aside className={css.rail} aria-label="创作设置"><div className={css.controls}><label>创作任务<select aria-label="创作任务" value={task} onChange={event => { setTask(event.target.value as CreationTask); if (!photoTouched.current) setPhotography(defaultPhotography(event.target.value)); requestKey.current = '' }}>{creationTasks.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select><small>{creationTasks.find(item => item.value === task)?.hint}</small></label><div className={css.creativity}><strong>想改多少？</strong><div className={css.creativityOptions} role="radiogroup" aria-label="改动幅度">{creativityOptions.map(option => <button key={option.value} type="button" role="radio" aria-checked={creativity === option.value} onClick={() => setCreativity(option.value)}>{option.label}{option.value === 'balanced' ? <span>推荐</span> : null}</button>)}</div><small>{creativityOptions.find(option => option.value === creativity)?.detail}</small></div>
+        <aside className={css.rail} aria-label="创作设置"><div className={css.controls}>
+          <div className={css.taskResolutionRow} data-task-resolution-row="">
+            <label>创作任务<select aria-label="创作任务" value={task} onChange={event => { setTask(event.target.value as CreationTask); if (!photoTouched.current) setPhotography(defaultPhotography(event.target.value)); requestKey.current = '' }}>{creationTasks.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+            <label>分辨率<select aria-label="输出分辨率" value={resolution} onChange={event => { setResolution(referenceResolution(event.target.value)); requestKey.current = '' }}>{referenceResolutions.map(value => <option key={value} value={value} disabled={only1K && value !== '1k'}>{value.toUpperCase()}</option>)}</select></label>
+          </div>
+          <small className={css.taskResolutionHint}>{creationTasks.find(item => item.value === task)?.hint}{only1K ? ' 当前型号仅支持 1K。' : ''}</small>
+          {resolutionIssue ? <small className={css.resolutionWarning} role="status">{resolutionIssue}</small> : null}
+          <div className={css.creativity}><strong>想改多少？</strong><div className={css.creativityOptions} role="radiogroup" aria-label="改动幅度">{creativityOptions.map(option => <button key={option.value} type="button" role="radio" aria-checked={creativity === option.value} onClick={() => setCreativity(option.value)}>{option.label}{option.value === 'balanced' ? <span>推荐</span> : null}</button>)}</div><small>{creativityOptions.find(option => option.value === creativity)?.detail}</small></div>
           <label>补充想法（可不填）<input aria-label="补充想法（可不填）" value={notes} onChange={event => setNotes(event.target.value)} placeholder="例如：更可爱一些、圣诞主题、减少复杂配饰" /></label>
           <PhotographyControls value={photography} onChange={value => { photoTouched.current = true; setPhotography(value); requestKey.current = '' }} />
           <small data-felt-material-default="">主体使用针刺羊毛毡；服装与配件按设计保留各自材料。按部件整理，不靠配件词表限制创作。</small>

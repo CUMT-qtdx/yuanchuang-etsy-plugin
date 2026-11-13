@@ -46,6 +46,14 @@ function modelListUrls(config: ModelListConfig): string[] {
   const base = config.apiUrl.trim().replace(/\/+$/, '')
   if (base === '') throw new Error('API URL is required')
   const urls: string[] = []
+  if (resolveChannelProtocol(base, config.protocol) === 'gemini-native') {
+    const url = new URL(base)
+    const root = url.pathname.replace(/\/models\/[^/]+:generateContent\/?$/, '').replace(/\/(?:v1beta|v1)(?:\/models)?\/?$/, '').replace(/\/+$/, '')
+    url.search = ''; url.hash = ''
+    url.pathname = `${root}/v1/models`; urls.push(url.toString())
+    url.pathname = `${root}/v1beta/models`; urls.push(url.toString())
+    return urls
+  }
   if (resolveChannelProtocol(base, config.protocol) === 'chat-completions' && isChatCompletionsUrl(base)) {
     const url = new URL(base)
     url.pathname = `${url.pathname.replace(/\/chat\/completions\/?$/, '')}/models`
@@ -97,7 +105,9 @@ function modelRecordsOf(body: unknown): ModelRecord[] | undefined {
       ? item.trim()
       : item !== null && typeof item === 'object' && typeof (item as { id?: unknown }).id === 'string'
         ? (item as { id: string }).id.trim()
-        : ''
+        : item !== null && typeof item === 'object' && typeof (item as { name?: unknown }).name === 'string'
+          ? (item as { name: string }).name.replace(/^models\//, '').trim()
+          : ''
     return id === '' ? [] : [{ ...(typeof item === 'object' && item !== null ? item as Record<string, unknown> : {}), id }]
   })
 }
@@ -210,7 +220,8 @@ export async function listOpenAIModels(config: ModelListConfig): Promise<string[
 
 /** List only models that advertise or conventionally represent image generation. */
 export async function listImageModels(config: ModelListConfig): Promise<string[]> {
-  return [...new Set((await listModelRecords(config)).filter(isImageModelRecord).map(record => record.id))]
+  const native = resolveChannelProtocol(config.apiUrl, config.protocol) === 'gemini-native'
+  return [...new Set((await listModelRecords(config)).filter(record => isImageModelRecord(record) || (native && hasImageGenerationCapability(record) !== false && /^gemini-nano-banana-/i.test(record.id))).map(record => record.id))]
     .sort((a, b) => a.localeCompare(b))
 }
 

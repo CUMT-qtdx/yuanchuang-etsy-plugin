@@ -15,6 +15,10 @@ export interface EditReference { id: string; name: string; dataUrl: string; byte
 /** Current adapter capabilities, not a claim about every vendor's API. */
 export function editReferenceLimit(model: string, channel?: Pick<ChannelConfig, 'apiUrl' | 'apiUrlFull' | 'protocol' | 'auth' | 'models'>): number {
   if (channel?.auth === 'subscription') return EDIT_REFERENCE_LIMIT
+  if (resolveChannelProtocol(channel?.apiUrl ?? '', channel?.protocol) === 'gemini-native') {
+    const nativeModel = channel?.models.find(item => item.alias === model)?.id || model
+    return /gemini-2\.5-flash-image/i.test(nativeModel) ? 3 : EDIT_REFERENCE_LIMIT
+  }
   if (resolveChannelProtocol(channel?.apiUrl ?? '', channel?.protocol) === 'chat-completions') return EDIT_REFERENCE_LIMIT
   const upstream = channel?.models.find(item => item.alias === model)?.id || model
   const { family } = describeModel(upstream)

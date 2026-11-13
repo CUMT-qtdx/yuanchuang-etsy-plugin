@@ -60,10 +60,10 @@ test('方案只读一次分析，结构化材料唯一生效，不夹入模型�
   for (const image of product.images) {
     assert.equal(image.visualRules.materialPreset, STUDIO_MATERIAL_V2)
     assert.match(image.visualRules.prompt, /lightweight woven cotton with stitched pocket edges/)
-    assert.match(image.visualRules.prompt, /DESIGN:[\s\S]*PLANNED CHANGES（必须出现）: 保持识别点/)
-    assert.match(image.visualRules.prompt, /AVOID: No long floating wool fibers/)
+    assert.match(image.visualRules.prompt, /DESIGN:[\s\S]*PLANNED CHANGES[^:]*: 保持识别点/)
+    assert.equal(image.visualRules.prompt.split('lightweight woven cotton with stitched pocket edges').length - 1, 1, '结构化材料在最终提示词中只组装一次')
     assert.match(image.visualRules.prompt, /计划变化优先于参考图保留措辞/)
-    assert.equal(image.visualRules.prompt.split('AVOID: ')[1].split('\n\n')[0].split(/\s+/).length, 25)
+    assert.equal(image.visualRules.profile.materialPlan.parts.find(part => part.part === 'blue dress').treatment, 'retain', '服装保留计划材料，不套用主体毡化处理')
     assert.doesNotMatch(image.visualRules.prompt, /old verbose knitted doll|Existing felt clothing|REALISTIC NEEDLE-FELTED WOOL PRODUCT TEMPLATE/)
     assert.equal(image.visualRules.profile.materialPlan.parts.length, 2)
     assert.equal(f.queue.get(image.taskId).request.prompt, image.visualRules.prompt)
@@ -123,7 +123,7 @@ test('新项目修改和失败重试仍用v2，多角度继续继承主图不反
 
 test('版本常量与包一致，v2不执行旧长模板且核心描述保持简短', async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url)))
-  assert.equal(PLUGIN_VERSION, pkg.version); assert.equal(PLUGIN_VERSION, '2.0.0-etsy.3')
+  assert.equal(PLUGIN_VERSION, pkg.version); assert.match(PLUGIN_VERSION, /^2\.0\.0-etsy\.\d+$/)
   assert.ok(NEEDLE_FELT_CORE_V2.split(/\s+/).length < 140)
   const text = referenceGenerationPrompt({ strategyVersion: 2, materialPreset: STUDIO_MATERIAL_V2, keep: [], plans: [] }, { name: 'test', direction: 'test', changes: [], prompt: examples[0] }, 'gentle', '')
   assert.ok(text.includes(examples[0])); assert.doesNotMatch(text, /realistic-needle-felt-product-v1/)

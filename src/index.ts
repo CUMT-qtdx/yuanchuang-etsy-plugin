@@ -487,7 +487,7 @@ const configSchema = z.object({
     apiUrlFull: z.boolean().default(false),
     // Seedream 的「AI 生成」角标由上游默认添加；渠道可以显式关闭，默认保持开启（#56）。
     watermark: z.boolean().default(true),
-    protocol: z.union([z.const('auto'), z.const('images'), z.const('chat-completions')]).default('auto'),
+    protocol: z.union([z.const('auto'), z.const('images'), z.const('chat-completions'), z.const('gemini-native')]).default('auto'),
     auth: z.union([z.const('api-key'), z.const('subscription')]).default('api-key'),
     subscription: z.string().default(''),
     models: z.array(z.object({
@@ -668,6 +668,7 @@ export interface EffectiveConfig {
 /** Whether a channel can back the optional chat model without subscription routing. */
 function isReusablePromptChannel(channel: RuntimeChannel): boolean {
   return channel.auth !== 'subscription'
+    && channel.protocol !== 'gemini-native'
     && channel.apiUrlFull !== true
     && channel.apiUrl.trim() !== ''
 }

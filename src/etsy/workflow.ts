@@ -619,9 +619,9 @@ export class EtsyWorkflow {
   private lockedViewRequest(product: EtsyProduct, design: FinalDesign, request: GenerateRequest): GenerateRequest {
     this.ensureViewAnchor(product, design)
     const anchor = design.multiViewAnchor!
-    // 全局摄影控件只用于探索/主图精修；定稿视角锁住主图的摄影、构图与清晰度档。
+    // 定稿视角锁住主图摄影与构图；明确选择的分辨率可以单独调整。
     const { image: _image, images: _images, feltContext: _context, ...clean } = request
-    return { ...clean, prompt: '', mode: 'edit', n: 1, size: anchor.photography.aspect_ratio, photography: anchor.photography, quality: anchor.quality ?? request.quality, detail: anchor.detail ?? request.detail }
+    return { ...clean, prompt: '', mode: 'edit', n: 1, size: anchor.photography.aspect_ratio, photography: anchor.photography, quality: ['1k', '2k', '4k'].includes(request.quality) ? request.quality : anchor.quality ?? request.quality, detail: anchor.detail ?? request.detail }
   }
   async confirmDesign(id: string, imageId: string, notes: string): Promise<EtsyProduct> {
     return this.tx(async () => {

@@ -1,6 +1,6 @@
 # 元创 Etsy Studio 2
 
-当前版本 **2.0.0-etsy.8**。它是 DeepSeek Harness 的生图插件。打开原来的 DSH 桌面程序，点击「生图」进入。员工实际怎么走，以及规划、生图、文案的原文，见 [docs/员工流程.md](docs/员工流程.md)。
+当前版本 **2.0.0-etsy.9**。它是 DeepSeek Harness 的生图插件。打开原来的 DSH 桌面程序，点击「生图」进入。员工实际怎么走，以及规划、生图、文案的原文，见 [docs/员工流程.md](docs/员工流程.md)。
 
 ![元创 Etsy Studio 2](docs/images/studio.png)
 
@@ -15,6 +15,17 @@
 页面上的 Source code 压缩包是 GitHub 自动附带的源码，不是安装程序。
 
 维护者的自动构建与发布步骤见 [版本发布说明](docs/版本发布.md)。
+
+## 2.0.0-etsy.9 改了什么
+
+- 「创作任务」右侧增加 1K / 2K / 4K 分辨率选择，默认 2K，并保存选择。
+- 首次生成、继续修改、失败重试及定稿多角度均使用所选档位。
+- 增加 Gemini 原生协议，支持 Creative 接口的分辨率参数及图片下载链接；仅支持 1K 的型号限制高档位。
+- Nano Banana 2.1 已识别为图片模型。GPT Images 和 Gemini Chat 沿用各自原有请求格式。
+
+## TokenFree 香蕉生图
+
+新版增加「Gemini 原生（generateContent）」协议。按官网 Creative 文档填写地址和协议，详见 [配置教程](docs/TokenFree香蕉生图_配置教程.md)。
 
 ## 员工实际怎么走
 

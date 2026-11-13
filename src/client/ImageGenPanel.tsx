@@ -2730,7 +2730,7 @@ export function ImageGenPanel(props: {
 
           {/* ------------------------------------------------------- canvas */}
           <section className={css.canvas} data-gallery={isGallery ? 'true' : undefined}>
-          {simpleMode ? <ReferenceStudio historyHost={sidebarHistoryHost} onModelsSaved={async choice => { setModelChannelId(choice.channelId); setModel(choice.model); await scope.load() }} request={() => {
+          {simpleMode ? <ReferenceStudio channels={config?.channels} historyHost={sidebarHistoryHost} onModelsSaved={async choice => { setModelChannelId(choice.channelId); setModel(choice.model); await scope.load() }} request={() => {
             const choice = resolveModelChoice(modeGroups, { channelId: modelChannelId, model }, defaultChannelId)
             return { mode: 'edit', prompt: '', model: choice.model, channelId: choice.channelId, n: 1, size, quality, detail }
           }} onAdvanced={() => { setStudioMode('advanced'); setEtsyOpen(false) }} /> : null}

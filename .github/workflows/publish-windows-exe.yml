@@ -46,6 +46,9 @@ jobs:
       - name: 构建插件
         run: pnpm run build
 
+      - name: 检查新协议与既有渠道
+        run: pnpm run test:unit
+
       - name: 构建单文件 EXE
         run: pnpm run release:exe
 
@@ -67,6 +70,17 @@ jobs:
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $tag = "v$version"
           $exe = Get-Item "out/windows-installer/Update-Yuanchuang-Etsy-$version.exe"
+          # 已发布的单 EXE 可能来自本机安装验收，自动重跑不能替换为另一份重新构建的文件。
+          $existingJson = gh release view $tag --repo $env:GITHUB_REPOSITORY --json assets,isDraft 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $existing = $existingJson | ConvertFrom-Json
+            $assets = @($existing.assets)
+            if ($assets.Count -gt 0) {
+              if ($assets.Count -ne 1 -or $assets[0].name -ne $exe.Name) { throw '已有发布附件与单 EXE 规则不符，停止自动替换' }
+              Write-Output '已有单文件 EXE 附件，保留已验收文件，不覆盖、不追加附件。'
+              exit 0
+            }
+          }
           $notes = @"
           下载附件中的 EXE，双击后点击「安装 / 更新」。
 
@@ -82,7 +96,7 @@ jobs:
             gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title $version --notes-file release-notes.md --draft
             if ($LASTEXITCODE -ne 0) { throw '创建发布记录失败' }
           }
-          gh release upload $tag $exe.FullName --repo $env:GITHUB_REPOSITORY --clobber
+          gh release upload $tag $exe.FullName --repo $env:GITHUB_REPOSITORY
           if ($LASTEXITCODE -ne 0) { throw '上传 EXE 失败' }
           gh release edit $tag --repo $env:GITHUB_REPOSITORY --title $version --notes-file release-notes.md --draft=false --latest
           if ($LASTEXITCODE -ne 0) { throw '发布失败' }

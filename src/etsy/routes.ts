@@ -119,7 +119,7 @@ export function makeEtsyRoutes(deps: {
       const design = product.finalDesigns?.find(value => value.id === String(body.designId))
       const master = product.images.find(value => value.id === design?.imageId)
       const photo = normalizePhotography(design?.multiViewAnchor?.photography ?? master?.visualRules?.photography ?? product.photography, defaultPhotography(product.creationTask, true))
-      const request = raw ? parse({ ...product.request, model: raw.model, channelId: raw.channelId, size: photo.aspect_ratio }) : product.request
+      const request = raw ? parse({ ...product.request, model: raw.model, channelId: raw.channelId, quality: raw.quality ?? product.request.quality, detail: raw.detail ?? product.request.detail, size: photo.aspect_ratio }) : product.request
       if (!request) throw new Error('图片模型配置无效')
       const normalized = deps.normalize(request)
       if (!normalized.ok) throw new Error(normalized.message)
@@ -153,7 +153,7 @@ export function makeEtsyRoutes(deps: {
       const override = body.generation && typeof body.generation === 'object' ? body.generation as Record<string, unknown> : undefined
       const parent = product.images.find(value => value.id === (body.imageId ?? product.selectedImageId))
       const photo = normalizePhotography(override?.photography, parent?.visualRules?.photography ?? product.photography ?? defaultPhotography(product.creationTask, true))
-      const request = override ? parse({ ...product.request, model: override.model, channelId: override.channelId, materialPreset: override.materialPreset ?? parent?.visualRules?.materialPreset ?? product.request.materialPreset, size: photo.aspect_ratio }) : { ...product.request, materialPreset: parent?.visualRules?.materialPreset ?? product.request.materialPreset }
+      const request = override ? parse({ ...product.request, model: override.model, channelId: override.channelId, quality: override.quality ?? product.request.quality, detail: override.detail ?? product.request.detail, materialPreset: override.materialPreset ?? parent?.visualRules?.materialPreset ?? product.request.materialPreset, size: photo.aspect_ratio }) : { ...product.request, materialPreset: parent?.visualRules?.materialPreset ?? product.request.materialPreset }
       if (!request) throw new Error('修图模型选择无效')
       const normalized = deps.normalize(request)
       if (!normalized.ok) throw new Error(normalized.message)

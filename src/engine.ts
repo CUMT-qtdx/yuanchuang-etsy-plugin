@@ -451,6 +451,7 @@ async function normalizeItem(
   item: Record<string, unknown>,
   upstream: UpstreamConfig,
   signal?: AbortSignal,
+  downloadTimeoutMs = IMAGE_FETCH_TIMEOUT_MS,
 ): Promise<{ b64: string; mime: string; revisedPrompt?: string }> {
   const revisedPrompt = typeof item.revised_prompt === 'string' ? item.revised_prompt : undefined
   if (typeof item.b64_json === 'string' && item.b64_json.trim() !== '') {
@@ -468,7 +469,7 @@ async function normalizeItem(
     if (parsed === undefined) throw new ImageGenError('upstream returned a malformed data: url')
     return { b64: parsed.base64, mime: detectImageMime(Buffer.from(parsed.base64, 'base64')) ?? parsed.mime, revisedPrompt }
   }
-  const budget = requestSignal(signal, IMAGE_FETCH_TIMEOUT_MS)
+  const budget = requestSignal(signal, downloadTimeoutMs)
   const resultContext: AttemptContext = {
     phase: 'fetch-result',
     channel: upstream.channelName?.trim() || '默认渠道',
@@ -1297,6 +1298,95 @@ async function generateMiniMaxImage(
   }
 }
 
+/** 从根地址或版本前缀生成原生 Gemini 地址，保留显式完整 URL 的语义。 */
+function geminiEndpointUrl(upstream: UpstreamConfig, baseUrl: string, model: string): string {
+  if (upstream.apiUrlFull === true) return baseUrl
+  const url = new URL(baseUrl)
+  let pathname = url.pathname.replace(/\/+$/, '')
+  if (/\/models\/[^/]+:generateContent$/.test(pathname)) return url.toString()
+  pathname = pathname.replace(/\/v1$/, '/v1beta')
+  if (!/\/v1beta(?:\/models)?$/.test(pathname)) pathname += '/v1beta'
+  if (!pathname.endsWith('/models')) pathname += '/models'
+  url.pathname = `${pathname}/${encodeURIComponent(model.replace(/^models\//, ''))}:generateContent`
+  return url.toString()
+}
+
+/** 原生请求与结果解析独立于 Images/Chat；不自动重试可能计费的生成。 */
+async function generateGeminiNative(upstream: UpstreamConfig, baseUrl: string, request: GenerateRequest, signal?: AbortSignal): Promise<GenerateResult> {
+  const model = wireModel(request)
+  const parts: Array<Record<string, unknown>> = [{ text: request.prompt }]
+  if (request.mode === 'edit') {
+    const references = [request.image, ...(request.images ?? [])].filter((value): value is string => typeof value === 'string' && value !== '')
+    if (references.length === 0) throw new ImageGenError('图生图需要上传参考图片', 'edit-image-missing')
+    const limit = /gemini-2\.5-flash-image/i.test(model) ? 3 : 5
+    if (references.length > limit) throw new ImageGenError(`当前原生模型最多支持 ${limit} 张参考图`, 'edit-image-limit')
+    for (const reference of references) {
+      const parsed = parseDataUrl(reference)
+      if (!parsed || !/^image\/(?:png|jpeg|webp|gif)$/i.test(parsed.mime)) throw new ImageGenError('原生 Gemini 参考图需要 PNG、JPEG、WebP 或 GIF 数据', 'edit-image-invalid')
+      const bytes = Buffer.from(parsed.base64, 'base64')
+      if (bytes.length > MAX_EDIT_IMAGE_BYTES) throw new ImageGenError('参考图片超过 10MB 上限', 'edit-image-too-large')
+      parts.push({ inlineData: { mimeType: parsed.mime, data: parsed.base64 } })
+    }
+  }
+  const imageConfig: Record<string, string> = {}
+  if (request.size && request.size !== 'auto') imageConfig.aspectRatio = request.size
+  if (request.quality && request.quality !== 'auto') {
+    const tier = request.quality.toUpperCase()
+    if (/^(1K|2K|4K)$/.test(tier)) imageConfig.imageSize = tier
+  }
+  if (/gemini-(?:2\.5-flash|3\.1-flash-lite)-image/i.test(model) && imageConfig.imageSize && imageConfig.imageSize !== '1K') {
+    throw new ImageGenError('当前 Gemini 型号仅支持 1K，请调整清晰度', 'unsupported-resolution')
+  }
+  const body = JSON.stringify({ contents: [{ parts }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig, candidateCount: effectiveCount(request) } })
+  const url = geminiEndpointUrl(upstream, baseUrl, model)
+  const context = attemptContext(upstream, request, 'generate', url, 'POST', body, Date.now())
+  const budget = requestSignal(signal, 300_000)
+  let response: Response | undefined
+  let text = ''
+  let records: Array<Record<string, unknown>> = []
+  try {
+    response = await fetch(url, { method: 'POST', headers: { 'x-goog-api-key': upstream.apiKey.trim(), 'content-type': 'application/json', accept: 'application/json' }, body, signal: budget.signal })
+    text = await response.text()
+    let payload: Record<string, unknown>
+    try { payload = JSON.parse(text) as Record<string, unknown> }
+    catch { throw new ImageGenError(`Gemini 返回了非 JSON 响应（HTTP ${response.status}）`, 'upstream-invalid') }
+    if (!response.ok || !payload || typeof payload !== 'object' || payload.error) throw new ImageGenError(`${upstreamMessage(payload, response.status)}（HTTP ${response.status} · ${displayUrl(url)}）`, 'upstream-rejected')
+    const candidates = Array.isArray(payload.candidates) ? payload.candidates : []
+    const notes: string[] = []
+    for (const raw of candidates) {
+      if (!raw || typeof raw !== 'object') continue
+      const candidate = raw as { content?: { parts?: Array<Record<string, unknown>> }; finishReason?: string }
+      for (const part of Array.isArray(candidate.content?.parts) ? candidate.content.parts : []) {
+        if (part.thought === true) continue
+        const inline = (part.inlineData ?? part.inline_data) as { data?: string; mimeType?: string; mime_type?: string } | undefined
+        const file = (part.fileData ?? part.file_data) as { fileUri?: string; file_uri?: string } | undefined
+        if (typeof inline?.data === 'string' && inline.data !== '') records.push({ b64_json: inline.data })
+        else if (typeof (file?.fileUri ?? file?.file_uri) === 'string') {
+          const resultUrl = String(file!.fileUri ?? file!.file_uri)
+          if (new URL(resultUrl).protocol !== 'https:') throw new ImageGenError('Gemini 返回的图片下载地址需要使用 HTTPS', 'upstream-invalid')
+          records.push({ url: resultUrl })
+        }
+        else if (typeof part.text === 'string') notes.push(part.text)
+      }
+      if (candidate.finishReason && candidate.finishReason !== 'STOP') notes.push(candidate.finishReason)
+    }
+    if (records.length === 0) {
+      const feedback = payload.promptFeedback as { blockReason?: string } | undefined
+      throw new ImageGenError(notes.join('\n').slice(0, 1200) || feedback?.blockReason || 'Gemini 响应中没有可下载的图片', 'upstream-empty')
+    }
+  } catch (error) {
+    const network = networkErrorFields(error)
+    const failure = error instanceof ImageGenError ? error
+      : isBudgetTimeout(error) ? new ImageGenError('Gemini 接口响应超时（300 秒）', 'upstream-timeout')
+        : signal?.aborted ? new ImageGenError('任务已取消', 'cancelled')
+          : new ImageGenError(`无法连接 Gemini 接口：${network.detail} · ${displayUrl(url)}`, 'upstream-unreachable')
+    recordFailure(context, failure, { status: response?.status, bodyExcerpt: text })
+    throw failure
+  } finally { budget.dispose() }
+  // 图片链接保留完整签名；下载沿用既有同源鉴权保护，第三方地址不携带 Key。
+  return { images: await Promise.all(records.map(item => normalizeItem(item, upstream, signal, 120_000))) }
+}
+
 /** Resolve the exact Chat Completions endpoint for a channel. */
 function chatEndpointUrl(upstream: UpstreamConfig, baseUrl: string): string {
   if (isChatCompletionsUrl(baseUrl)) return baseUrl
@@ -1416,6 +1506,7 @@ export async function generateImage(upstream: UpstreamConfig, request: GenerateR
   const baseUrl = normalizeModelScopeBaseUrl(configuredBaseUrl, upstream.apiUrlFull === true)
   if (baseUrl === '') throw new ImageGenError('api_url 未配置：请先在「设置 → 生图配置」中填写', 'config-missing')
   if (upstream.apiKey.trim() === '') throw new ImageGenError('api_key 未配置：请先在「设置 → 生图配置」中填写', 'config-missing')
+  if (resolveChannelProtocol(baseUrl, upstream.protocol) === 'gemini-native') return generateGeminiNative(upstream, baseUrl, request, options.signal)
   if (resolveChannelProtocol(baseUrl, upstream.protocol) === 'chat-completions') {
     return { images: await generateChatCompletionImages(upstream, baseUrl, request, options.signal) }
   }
