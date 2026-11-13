@@ -104,6 +104,8 @@
     "test:browser": "pnpm exec tsdown --config scripts/conversation-preview.config.ts && node scripts/conversation-browser-test.mjs",
     "watch": "tsdown --watch",
     "typecheck": "tsc --noEmit",
-    "fetch-templates": "node scripts/fetch-templates.mjs"
+    "fetch-templates": "node scripts/fetch-templates.mjs",
+    "release:exe": "node scripts/build-windows-installer.mjs",
+    "test:installer": "node scripts/windows-installer-smoke.mjs"
   }
 }

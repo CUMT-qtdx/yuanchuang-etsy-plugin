@@ -8,11 +8,13 @@
 
 每个版本的双击安装文件在 [Releases](https://github.com/CUMT-qtdx/yuanchuang-etsy-plugin/releases)。
 
-下载 `Update-Yuanchuang-Etsy-*.exe`，双击一次即可安装或更新。不用解压，不用删除旧版。双击后会先出现确认窗口，接着保持命令行窗口，不要关掉。已有商品、图片和渠道配置会保留。窗口提示安装成功后，重新打开 DeepSeek Harness。标题旁的版本号应与所安装的版本一致。
+从[最新版本](https://github.com/CUMT-qtdx/yuanchuang-etsy-plugin/releases/latest)下载唯一的 `Update-Yuanchuang-Etsy-*.exe`。退出 DSH 后双击，点击「安装 / 更新」。安装成功后打开 DSH，进入「生图」。已有商品、图片和渠道配置会保留。
 
-`2.0.0-etsy.8` 只改了安装文件：从 GitHub 下载后双击会先出现窗口。生图规则和界面与 `2.0.0-etsy.7` 相同。
+`2.0.0-etsy.8` 改为中文窗口的单文件安装器，已包含插件及运行依赖，安装过程无需额外下载依赖。生图规则和界面与 `2.0.0-etsy.7` 相同。首次使用的电脑需要先安装并打开过 DeepSeek Harness 主程序。
 
 页面上的 Source code 压缩包是 GitHub 自动附带的源码，不是安装程序。
+
+维护者的自动构建与发布步骤见 [版本发布说明](docs/版本发布.md)。
 
 ## 员工实际怎么走
 

@@ -1,0 +1,88 @@
+name: 发布 Windows 单文件安装器
+
+on:
+  push:
+    tags:
+      - 'v*-etsy.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: 获取源码
+        uses: actions/checkout@v7
+
+      - name: 准备 Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: 准备 pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: '11.28.5'
+
+      - name: 核对标签版本
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:RELEASE_TAG -and $env:RELEASE_TAG -ne "v$version") {
+            throw '标签与 package.json 版本不一致'
+          }
+
+      - name: 安装构建依赖
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: 构建插件
+        run: pnpm run build
+
+      - name: 构建单文件 EXE
+        run: pnpm run release:exe
+
+      - name: 验收交付文件和启动入口
+        run: pnpm run test:installer
+
+      - name: 保存构建核验记录
+        uses: actions/upload-artifact@v7
+        with:
+          name: installer-build-evidence
+          path: out/windows-installer/installer-manifest.json
+
+      - name: 发布唯一的 EXE 附件
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = "v$version"
+          $exe = Get-Item "out/windows-installer/Update-Yuanchuang-Etsy-$version.exe"
+          $notes = @"
+          下载附件中的 EXE，双击后点击「安装 / 更新」。
+
+          请先安装并打开过 DeepSeek Harness；更新前保存任务，从「应用 → 退出」退出主程序。
+
+          安装器已包含插件及运行依赖，安装时无需下载依赖。已有商品、图片和模型渠道配置会保留。
+
+          Source code 压缩包由 GitHub 自动生成，员工只需下载 EXE。
+          "@
+          $notes | Set-Content release-notes.md -Encoding utf8
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title $version --notes-file release-notes.md --draft
+            if ($LASTEXITCODE -ne 0) { throw '创建发布记录失败' }
+          }
+          gh release upload $tag $exe.FullName --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw '上传 EXE 失败' }
+          gh release edit $tag --repo $env:GITHUB_REPOSITORY --title $version --notes-file release-notes.md --draft=false --latest
+          if ($LASTEXITCODE -ne 0) { throw '发布失败' }
