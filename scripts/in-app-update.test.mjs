@@ -26,6 +26,18 @@ test('历史后缀与纯数字版本正确比较',()=>{
  for(const[a,b]of [['2.0.0-etsy.10','2.0.0-etsy.9'],['2.0.10-etsy','2.0.0-etsy.9'],['2.1.1','2.0.10-etsy'],['2.1.10','2.1.9'],['2.2.1','2.1.10']])assert(compareReleaseVersions(a,b)>0)
  assert.equal(compareReleaseVersions('v2.1.1','2.1.1'),0)
 })
+test('Release 标题加 Etsy 标识后，版本检测、附件地址与校验值保持一致',()=>{
+ for(const [current,next] of [['2.0.10-etsy','2.1.1'],['2.1.1','2.1.2'],['2.1.9','2.1.10'],['2.1.10','2.2.1']]){
+  const original=release(next),renamed={...original,name:`${next}-etsy`}
+  const before=releaseInfo(original,current),after=releaseInfo(renamed,current)
+  assert.deepEqual(after,before)
+  assert.equal(after.updateAvailable,true)
+  assert.equal(after.latestVersion,next)
+  assert.equal(after.installer.name,`Update-Yuanchuang-Etsy-${next}.exe`)
+  assert.equal(after.installer.sha256,sha)
+  assert.equal(releaseInfo(renamed,next).updateAvailable,false)
+ }
+})
 test('只接受该仓库唯一的带校验值EXE；拒绝其他主机和多附件',()=>{
  assert.equal(releaseInfo(release(),'2.1.1').installer.sha256,sha)
  const missing=release();delete missing.assets[0].digest;assert.throws(()=>releaseInfo(missing,'2.1.1'),/SHA-256/)
