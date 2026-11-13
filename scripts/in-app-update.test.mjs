@@ -23,7 +23,7 @@ async function setup(t,extra={}){
 }
 async function settled(service){for(let i=0;i<200;i++){const s=await service.status();if(s.phase!=='downloading')return s;await new Promise(r=>setTimeout(r,10))}throw Error('下载未结束')}
 test('历史后缀与纯数字版本正确比较',()=>{
- for(const[a,b]of [['2.0.0-etsy.10','2.0.0-etsy.9'],['2.0.10-etsy','2.0.0-etsy.9'],['2.1.1','2.0.10-etsy'],['2.1.10','2.1.9'],['2.2.1','2.1.10']])assert(compareReleaseVersions(a,b)>0)
+ for(const[a,b]of [['2.0.0-etsy.10','2.0.0-etsy.9'],['2.0.10-etsy','2.0.0-etsy.9'],['2.1.1','2.0.10-etsy'],['2.1.10','2.1.9'],['2.2.1','2.1.10'],['2.1.1-etsy','2.0.10-etsy'],['2.1.2-etsy','2.1.1-etsy'],['2.1.10-etsy','2.1.9-etsy'],['2.2.1-etsy','2.1.10-etsy']])assert(compareReleaseVersions(a,b)>0)
  assert.equal(compareReleaseVersions('v2.1.1','2.1.1'),0)
 })
 test('Release 标题加 Etsy 标识后，版本检测、附件地址与校验值保持一致',()=>{
@@ -43,6 +43,18 @@ test('只接受该仓库唯一的带校验值EXE；拒绝其他主机和多附�
  const missing=release();delete missing.assets[0].digest;assert.throws(()=>releaseInfo(missing,'2.1.1'),/SHA-256/)
  const foreign=release();foreign.assets[0].browser_download_url='https://evil.example/file.exe';assert.throws(()=>releaseInfo(foreign,'2.1.1'),/不属于/)
  const extra=release();extra.assets.push({...extra.assets[0],name:'extra.zip'});assert.throws(()=>releaseInfo(extra,'2.1.1'),/单个 EXE/)
+})
+test('带 Etsy 后缀的正式版本与标题、标签、EXE 保持一致，旧编号仍可升级',()=>{
+ const branded={...release('2.1.1-etsy'),name:'2.1.1-etsy'}
+ for(const current of ['2.0.0-etsy.9','2.0.10-etsy']){
+  const info=releaseInfo(branded,current)
+  assert.equal(info.updateAvailable,true)
+  assert.equal(info.latestVersion,branded.name)
+  assert.equal(info.installer.name,'Update-Yuanchuang-Etsy-2.1.1-etsy.exe')
+  assert.ok(info.releaseUrl.endsWith('/v2.1.1-etsy'))
+ }
+ assert.equal(releaseInfo(branded,'2.1.1-etsy').updateAvailable,false)
+ assert.equal(releaseInfo(release('2.1.2-etsy'),'2.1.1-etsy').updateAvailable,true)
 })
 test('检测缓存支持手动刷新并正确识别新版',async()=>{
  clearUpdateCache();let calls=0;const fetchFn=async url=>{assert.equal(url,`https://api.github.com/repos/${REPOSITORY}/releases/latest`);calls++;return new Response(JSON.stringify(release()))}

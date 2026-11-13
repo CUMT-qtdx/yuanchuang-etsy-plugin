@@ -4,16 +4,18 @@ import { readFile } from 'node:fs/promises'
 import { isInstallerVersion, nextReleaseVersion } from './release-version.mjs'
 import { checkForUpdate, clearUpdateCache, installUpdate, CURRENT_VERSION } from '../src/updater.ts'
 
-test('安装包名兼容历史格式、本版过渡格式和后续纯数字版本', () => {
-  for (const version of ['2.0.0-etsy.8', '2.0.0-etsy.9', '2.0.10-etsy', '2.1.1', '2.1.10', '2.2.1']) assert.equal(isInstallerVersion(version), true)
+test('安装包名兼容历史格式、纯数字旧版和统一 Etsy 后缀', () => {
+  for (const version of ['2.0.0-etsy.8', '2.0.0-etsy.9', '2.0.10-etsy', '2.1.1', '2.1.10', '2.2.1', '2.1.1-etsy', '2.1.10-etsy', '2.2.1-etsy']) assert.equal(isInstallerVersion(version), true)
   for (const version of ['', '2.01.1', 'v2.1.1', '2.1.1/bad', '2.1.1;bad', '2.1.1-beta', '2.1.1\n']) assert.equal(isInstallerVersion(version), false)
 })
 
-test('按每组十版递进，过渡版后为 2.1.1，第十版后为下一组第一版', () => {
+test('按每组十版递进并统一 Etsy 后缀，第十版后为下一组第一版', () => {
   assert.equal(nextReleaseVersion('2.0.0-etsy.9'), '2.0.10-etsy')
-  assert.equal(nextReleaseVersion('2.0.10-etsy'), '2.1.1')
+  assert.equal(nextReleaseVersion('2.0.10-etsy'), '2.1.1-etsy')
   for (let minor = 1; minor <= 5; minor++) for (let patch = 1; patch <= 10; patch++) {
-    assert.equal(nextReleaseVersion(`2.${minor}.${patch}`), patch === 10 ? `2.${minor + 1}.1` : `2.${minor}.${patch + 1}`)
+    const expected = patch === 10 ? `2.${minor + 1}.1-etsy` : `2.${minor}.${patch + 1}-etsy`
+    assert.equal(nextReleaseVersion(`2.${minor}.${patch}`), expected)
+    assert.equal(nextReleaseVersion(`2.${minor}.${patch}-etsy`), expected)
   }
   for (const version of ['2.1.0', '2.1.11', '2.0.0-etsy.8', 'bad']) assert.throws(() => nextReleaseVersion(version))
 })

@@ -12,7 +12,7 @@ export type { UpdateInfo } from './protocol.ts'
 export const CURRENT_VERSION = PLUGIN_VERSION
 export const PACKAGE_NAME = '@dickpy/dsh-imagegen'
 export const RELEASES_URL = 'https://api.github.com/repos/CUMT-qtdx/yuanchuang-etsy-plugin/releases/latest'
-// 定制分发身份独立于版本格式，后续 2.1.1 等纯数字版本仍使用单 EXE 升级。
+// 定制分发身份独立于版本格式，历史编号和统一 Etsy 后缀都使用本项目的单 EXE 升级。
 const CUSTOM_DISTRIBUTION = true
 const CUSTOM_RELEASES_URL = 'https://github.com/CUMT-qtdx/yuanchuang-etsy-plugin/releases'
 

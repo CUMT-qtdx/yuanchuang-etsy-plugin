@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { PLUGIN_VERSION, UPDATE_API, type UpdateInfo, type UpdateProgress } from '../protocol.ts'
 import css from './app-update.module.css'
+import { renderMarkdown } from './markdown.tsx'
 async function post<T>(url: string, body: unknown = {}): Promise<T> {
   const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
   const value = await response.json() as T & { ok?: boolean; message?: string }
@@ -59,7 +60,7 @@ export function AppUpdateButton(): React.JSX.Element {
     {open ? <section className={css.popover} role="dialog" aria-label="插件版本更新">
       <div className={css.head}><strong>插件更新</strong><button type="button" onClick={() => setOpen(false)} aria-label="关闭更新面板">×</button></div>
       <p>当前版本 <b>{PLUGIN_VERSION}</b>{info?.updateAvailable ? <> → <b>{info.latestVersion}</b></> : null}</p>
-      {info?.releaseNotes ? <p className={css.notes}>{info.releaseNotes}</p> : null}
+      {info?.releaseNotes ? <div className={css.notes} aria-label="更新内容">{renderMarkdown(info.releaseNotes)}</div> : null}
       {progress?.phase === 'downloading' ? <div><progress aria-label="更新下载进度" max={100} value={percent} /><small>正在下载 {percent}% · {(progress.receivedBytes / 1048576).toFixed(1)} / {(progress.totalBytes / 1048576).toFixed(1)} MB</small></div> : null}
       {progress && progress.phase !== 'idle' ? <p className={css.status} role="status" data-error={progress.phase === 'failed' ? 'true' : undefined}>{progress.message}</p> : null}
       {message ? <p className={css.status} role="status">{message}</p> : null}

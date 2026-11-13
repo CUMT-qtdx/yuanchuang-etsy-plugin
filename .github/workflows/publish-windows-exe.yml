@@ -83,15 +83,10 @@ jobs:
               exit 0
             }
           }
-          $notes = @"
-          下载附件中的 EXE，双击后点击「安装 / 更新」。
-
-          请先安装并打开过 DeepSeek Harness；更新前保存任务，从「应用 → 退出」退出主程序。
-
-          安装器已包含插件及运行依赖，安装时无需下载依赖。已有商品、图片和模型渠道配置会保留。
-
-          Source code 压缩包由 GitHub 自动生成，员工只需下载 EXE。
-          "@
+          # 发布正文同时显示在插件的更新弹窗，只放面向使用者的更新内容。
+          $changelog = "docs/releases/$tag.md"
+          if (-not (Test-Path -LiteralPath $changelog)) { throw '缺少本版更新说明，请补充 docs/releases/对应标签.md' }
+          $notes = Get-Content -LiteralPath $changelog -Raw -Encoding utf8
           $notes | Set-Content release-notes.md -Encoding utf8
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -ne 0) {
