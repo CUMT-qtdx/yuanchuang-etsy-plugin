@@ -1,6 +1,6 @@
 # 元创 Etsy Studio 2
 
-当前版本 **2.0.0-etsy.7**。它是 DeepSeek Harness 的生图插件。打开原来的 DSH 桌面程序，点击「生图」进入。员工实际怎么走，以及规划、生图、文案的原文，见 [docs/员工流程.md](docs/员工流程.md)。
+当前版本 **2.0.0-etsy.8**。它是 DeepSeek Harness 的生图插件。打开原来的 DSH 桌面程序，点击「生图」进入。员工实际怎么走，以及规划、生图、文案的原文，见 [docs/员工流程.md](docs/员工流程.md)。
 
 ![元创 Etsy Studio 2](docs/images/studio.png)
 
@@ -8,7 +8,9 @@
 
 每个版本的双击安装文件在 [Releases](https://github.com/CUMT-qtdx/yuanchuang-etsy-plugin/releases)。
 
-下载 `Update-Yuanchuang-Etsy-*.exe`，双击一次即可安装或更新。不用解压，不用删除旧版。已有商品、图片和渠道配置会保留。窗口提示安装成功后，重新打开 DeepSeek Harness。标题旁的版本号应与所安装的版本一致。
+下载 `Update-Yuanchuang-Etsy-*.exe`，双击一次即可安装或更新。不用解压，不用删除旧版。双击后会先出现确认窗口，接着保持命令行窗口，不要关掉。已有商品、图片和渠道配置会保留。窗口提示安装成功后，重新打开 DeepSeek Harness。标题旁的版本号应与所安装的版本一致。
+
+`2.0.0-etsy.8` 只改了安装文件：从 GitHub 下载后双击会先出现窗口。生图规则和界面与 `2.0.0-etsy.7` 相同。
 
 页面上的 Source code 压缩包是 GitHub 自动附带的源码，不是安装程序。
 
