@@ -62,8 +62,8 @@ test('独立 API 仍受支持，换服务商不会自动转发原服务商密钥
   const host = chooseEtsyModel({ model: 'another-model' }, { apiUrl: HOST_MODEL_URL, apiKey: '', model: 'p/m', hostProvider: 'p', hostModel: 'm' })
   assert.equal(host.hostModel, 'another-model'); assert.equal(host.model, 'p/another-model')
 })
-test('定制版不提示覆盖上游包，安装接口也拒绝丢失定制功能的替换', async () => {
-  const status = await checkForUpdate(async () => { throw new Error('不应发出上游更新请求') })
+test('定制版仅检测自己的仓库，旧包管理替换路径仍拒绝', async () => {
+  const status = await checkForUpdate(async url => { assert.match(url, /CUMT-qtdx\/yuanchuang-etsy-plugin/); return new Response(JSON.stringify({tag_name:'v2.0.10-etsy',assets:[]})) })
   assert.equal(status.updateAvailable, false)
   await assert.rejects(installUpdate('1.15.5', () => { throw new Error('不应启动包管理器') }), /定制开发版/)
 })

@@ -6,6 +6,7 @@ import path from 'node:path'
 import { createServer } from 'node:http'
 import { STUDIO_MATERIAL_V2, NEEDLE_FELT_CORE_V2, normalizeMaterialPlanV2, makeFeltContext, composeFeltPrompt, defaultPhotography, createEtsyModels, ImageGenerationRuntime, referenceGenerationPrompt, PLUGIN_VERSION } from '../.etsy-test/host.js'
 import { fixture, input, facts, modelConfig, pixel } from './etsy-fixture.mjs'
+import { isInstallerVersion } from './release-version.mjs'
 const v2 = (brief, extra = {}) => makeFeltContext({ materialPreset: STUDIO_MATERIAL_V2, basePrompt: brief, stage: 'generation', photography: defaultPhotography(), ...extra })
 const examples = [
   'Keep the same rabbit face but adds a soft oatmeal knitted scarf around the neck.',
@@ -123,7 +124,7 @@ test('新项目修改和失败重试仍用v2，多角度继续继承主图不反
 
 test('版本常量与包一致，v2不执行旧长模板且核心描述保持简短', async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url)))
-  assert.equal(PLUGIN_VERSION, pkg.version); assert.match(PLUGIN_VERSION, /^2\.0\.0-etsy\.\d+$/)
+  assert.equal(PLUGIN_VERSION, pkg.version); assert.ok(isInstallerVersion(PLUGIN_VERSION))
   assert.ok(NEEDLE_FELT_CORE_V2.split(/\s+/).length < 140)
   const text = referenceGenerationPrompt({ strategyVersion: 2, materialPreset: STUDIO_MATERIAL_V2, keep: [], plans: [] }, { name: 'test', direction: 'test', changes: [], prompt: examples[0] }, 'gentle', '')
   assert.ok(text.includes(examples[0])); assert.doesNotMatch(text, /realistic-needle-felt-product-v1/)

@@ -20,9 +20,9 @@ export function fixture(root, options = {}) {
     const index = counts.generation
     await new Promise(resolve => setTimeout(resolve, options.generationDelay ?? 8))
     if (options.failGeneration?.(index)) throw new Error('mock image failure')
-    if (options.generate) return options.generate(request, index)
+    if (options.generate) return options.generate(request, index, signal)
     return { images: [{ b64: pixel, mime: 'image/png' }] }
-  }, 4)
+  }, 4, options.executionBudget)
   let completionListener
   const subscribe = queue.subscribe.bind(queue)
   queue.subscribe = listener => { completionListener = listener; return subscribe(listener) }

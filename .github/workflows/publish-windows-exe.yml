@@ -3,7 +3,7 @@ name: 发布 Windows 单文件安装器
 on:
   push:
     tags:
-      - 'v*-etsy.*'
+      - 'v*.*.*'
   workflow_dispatch:
 
 permissions:

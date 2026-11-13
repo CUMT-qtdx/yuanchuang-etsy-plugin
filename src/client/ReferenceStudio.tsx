@@ -22,6 +22,7 @@ import type { ModelPickerValue } from './ModelPicker.tsx'
 import { imageCopyStage, productStages } from '../etsy/selected-copy.ts'
 import { listingUsesEnglish } from '../etsy/copy-style.ts'
 import css from './reference-studio.module.css'
+import { AppUpdateButton } from './AppUpdateButton.tsx'
 
 const blank: ProductFacts = { name: '', type: 'unspecified', requirements: '', materials: '', dimensions: '', packaging: '', processing: '', delivery: '', personalization: '', confirmed: false, authenticityConfirmed: false }
 const newProjectKey = '__new__'
@@ -31,6 +32,7 @@ async function asDataUrl(blob: Blob): Promise<string> { return new Promise((reso
 export function ReferenceStudio(props: { request: () => GenerateRequest; channels?: readonly ChannelConfig[]; onAdvanced: () => void; historyHost?: HTMLElement | null; onModelsSaved?: (image: ModelPickerValue) => Promise<void> }): React.JSX.Element {
   const [facts, setFacts] = useState<ProductFacts>(() => { try { return { ...blank, ...JSON.parse(localStorage.getItem('etsy-reference-facts') || '{}') } } catch { return blank } })
   const [referenceDraft, setReferenceDraft] = useState<ReferenceDraft[]>(), [notes, setNotes] = useState('')
+  const [referenceSession, setReferenceSession] = useState(0)
   const [count, setCount] = useState(4), [task, setTask] = useState<CreationTask>('redesign'), [copyTiming, setCopyTiming] = useState<'all' | 'selected'>('selected')
   const [resolution, setResolution] = useState<ReferenceResolution>(() => {
     try { return referenceResolution(localStorage.getItem(REFERENCE_RESOLUTION_KEY), referenceResolution(props.request().quality)) }
@@ -118,6 +120,7 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; channel
   const selectProject = (next: string): void => {
     if (dirty.current) { setError('文案还有未保存修改，请先保存'); return }
     restoreRecent.current = false
+    setReferenceSession(previous => previous + 1)
     currentId.current = next; setId(next); setReferenceDraft(undefined); setError(''); setEditing(false); setInstruction(''); setNotes(''); setTab('titles'); setSaveState('已保存'); requestKey.current = ''
     editor.reset(); const record = products.find(product => product.id === next)
     setFacts(record ? structuredClone(record.facts) : { ...blank }); setCreativity(record?.creativity ?? 'balanced'); setTask(record?.creationTask ?? 'redesign'); setCount(record?.referencePlan?.plans.length ?? 4); setCopyTiming(record?.copyTiming ?? (record ? 'all' : 'selected')); setPhotography(normalizePhotography(record?.photography, defaultPhotography(record?.creationTask, !!record))); photoTouched.current = !!record?.photography
@@ -250,7 +253,7 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; channel
   const history = <CreationHistory products={products} selectedId={id} disabled={busy} notice={nameNotice} onSelect={selectProject} onDelete={deleteProject} onRename={renameProject} />
   return <div className={css.studio} data-reference-studio="" data-current-project={id || 'new'}>
     {imagePreview ? <CreationImageViewer images={imagePreview.images} index={imagePreview.index} onIndex={index => setImagePreview(current => current ? { ...current, index } : undefined)} onClose={() => setImagePreview(undefined)} /> : null}
-    <header className={css.header}><div className={css.brand}><strong>元创 Etsy Studio</strong><small data-studio-version="">{PLUGIN_VERSION}</small></div><div className={css.actions}><button type="button" onClick={props.onAdvanced}>高级工具</button></div></header>
+    <header className={css.header}><div className={css.brand}><strong>元创 Etsy Studio</strong><small data-studio-version="">{PLUGIN_VERSION}</small></div><div className={css.actions}><AppUpdateButton /><button type="button" onClick={props.onAdvanced}>高级工具</button></div></header>
     {props.historyHost ? createPortal(history, props.historyHost) : null}
     <div className={css.workspace}>
     {!props.historyHost ? <aside className={css.historyFallback}>{history}</aside> : null}
@@ -258,7 +261,7 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; channel
       <StudioModelPanel request={props.request} onSaved={props.onModelsSaved} onSaving={setModelSaving} />
       <section className={css.workbench} aria-label="参考图与创作设置">
         <div className={css.stage}>
-        <DesignReferences value={references} onChange={value => { setReferenceDraft(value); requestKey.current = '' }} onError={setError} />
+        <DesignReferences key={`${id}:${referenceSession}`} value={references} onChange={value => { setReferenceDraft(value); requestKey.current = '' }} onError={setError} />
       {error ? <p className={css.error} role="alert">{error}</p> : null}
       {product?.planning ? <div className={css.progress} role="status"><span>{product.planning.status === 'completed' ? `✓ 已完成参考图分析与${product.referencePlan?.plans.length ?? count}方案规划` : product.planning.status === 'running' || product.planning.status === 'queued' ? `正在理解参考图并规划${product.images.filter(image => image.kind !== 'view').length}个方向…` : `参考图分析${stageText[product.planning.status]}`}</span>{product.planning.error ? <span className={css.error}>{product.planning.error}</span> : null}<span>{product.images.filter(image => image.generation.status === 'completed').length} 张图片已保存 · {copiesReady} 份图文已就绪</span>{activeTask ? <button type="button" onClick={() => { void action('cancel') }}>停止未完成任务</button> : null}</div> : null}
         <section><div className={css.sectionHeading}><h3>{product ? `设计探索（${product.images.filter(image => image.kind !== 'view' && image.files.length).length}）${product.round ? ` · 第${product.round}轮` : ''}` : `${count}个设计方案`}</h3><small>选中设计后可继续精修或确定主设计</small></div><div className={css.grid}>

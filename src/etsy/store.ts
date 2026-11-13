@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, readdir, rename, writeFile, lstat, realpath, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { detectImageMime } from '../image-format.ts'
+import { MAX_PRODUCT_IMAGE_BYTES } from '../image-limits.ts'
 import type { GeneratedImage } from '../protocol.ts'
 import { imageDataRoot } from '../image-storage-path.ts'
 import type { EtsyProduct } from './types.ts'
@@ -51,7 +52,7 @@ export class EtsyStore {
   }
   async saveImage(id: string, image: GeneratedImage): Promise<string> {
     const bytes = Buffer.from(image.b64, 'base64')
-    if (bytes.length > 20 * 1024 * 1024) throw new Error('商品图片超过 20 MiB')
+    if (bytes.length > MAX_PRODUCT_IMAGE_BYTES) throw new Error('商品图片超过 20 MiB')
     const mime = detectImageMime(bytes)
     if (mime === undefined) throw new Error('商品图片格式无法识别')
     const ext = mime === 'image/jpeg' ? 'jpg' : mime.split('/')[1]

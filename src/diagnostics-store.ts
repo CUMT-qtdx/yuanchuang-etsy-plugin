@@ -59,7 +59,8 @@ export function redactDiagnosticText(value: string, limit = DIAGNOSTIC_EXCERPT_M
     return `${header},<${match.length} chars of base64 redacted>`
   })
   // A long unbroken base64 run outside a data URL (raw b64_json responses).
-  text = text.replace(/(?<![A-Za-z0-9+/=])[A-Za-z0-9+/=]{200,}(?![A-Za-z0-9+/=])/g, '<long-base64 redacted>')
+  // 先线性匹配连续段，再判断长度，避免大图片触发有界重复正则的栈溢出。
+  text = text.replace(/[A-Za-z0-9+/=]+/g, match => match.length >= 200 ? '<long-base64 redacted>' : match)
   return text.length > limit ? `${text.slice(0, limit)}…[truncated ${text.length - limit} chars]` : text
 }
 

@@ -10,6 +10,7 @@
 
 import { isChatCompletionsUrl, resolveChannelProtocol, type ChannelProtocolPreference, type GeneratedImage, type GenerateRequest, type GenerateResult } from './protocol.ts'
 import { detectImageMime } from './image-format.ts'
+import { MAX_PRODUCT_IMAGE_BYTES } from './image-limits.ts'
 import { modelFamily, promptCharLimit } from './model-catalog.ts'
 import { bodyByteLength, excerptOf, networkErrorFields, readResponseExcerpt, readResponseText, recordDiagnostic, type DiagnosticPhase } from './diagnostics-store.ts'
 
@@ -46,9 +47,18 @@ const UPSTREAM_TIMEOUT_MS = 240_000
 
 /** Budget for downloading one result image URL. */
 const IMAGE_FETCH_TIMEOUT_MS = 60_000
+const GEMINI_NATIVE_TIMEOUT_MS = 300_000
+const GEMINI_NATIVE_IMAGE_FETCH_TIMEOUT_MS = 120_000
+
+/** 外层守护预算覆盖内部生成、异步查询及结果下载，留出归档时间；排队不占用此预算。 */
+export function imageGenerationBudgetMs(upstream: Pick<UpstreamConfig, 'apiUrl' | 'protocol'>): number {
+  return resolveChannelProtocol(upstream.apiUrl, upstream.protocol) === 'gemini-native'
+    ? GEMINI_NATIVE_TIMEOUT_MS + GEMINI_NATIVE_IMAGE_FETCH_TIMEOUT_MS + 15_000
+    : UPSTREAM_TIMEOUT_MS + ASYNC_POLL_MAX_MS + IMAGE_FETCH_TIMEOUT_MS + 15_000
+}
 
 /** Cap on the reference image payload (edit mode), in bytes. */
-const MAX_EDIT_IMAGE_BYTES = 10 * 1024 * 1024
+const MAX_EDIT_IMAGE_BYTES = MAX_PRODUCT_IMAGE_BYTES
 
 /** Sizes dall-e-3 accepts; anything else falls back to its square default. */
 const DALLE3_SIZES = new Set(['1024x1024', '1792x1024', '1024x1792'])
@@ -873,7 +883,7 @@ async function requestOneImage(
         throw new ImageGenError('参考图片数据无法解码', 'edit-image-invalid')
       }
       if (bytes.byteLength > MAX_EDIT_IMAGE_BYTES) {
-        throw new ImageGenError('参考图片超过 10MB 上限', 'edit-image-too-large')
+        throw new ImageGenError('参考图片超过 20 MiB 上限', 'edit-image-too-large')
       }
       return { bytes, mime: parsed.mime, filename: `reference.${extensionOf(parsed.mime)}` }
     }
@@ -1060,7 +1070,7 @@ async function generateQwenImage(
     if (parsed === undefined) throw new ImageGenError('参考图片格式无效', 'edit-image-invalid')
     const bytes = Buffer.from(parsed.base64, 'base64')
     if (bytes.byteLength > MAX_EDIT_IMAGE_BYTES) {
-      throw new ImageGenError('参考图片超过 10MB 上限', 'edit-image-too-large')
+      throw new ImageGenError('参考图片超过 20 MiB 上限', 'edit-image-too-large')
     }
     content.push({ image: request.image })
   }
@@ -1204,7 +1214,7 @@ async function generateMiniMaxImage(
     if (parsed === undefined) throw new ImageGenError('参考图片格式无效', 'edit-image-invalid')
     const bytes = Buffer.from(parsed.base64, 'base64')
     if (bytes.byteLength > MAX_EDIT_IMAGE_BYTES) {
-      throw new ImageGenError('参考图片超过 10MB 上限', 'edit-image-too-large')
+      throw new ImageGenError('参考图片超过 20 MiB 上限', 'edit-image-too-large')
     }
     // image-01 takes exactly one character reference per request.
     body.subject_reference = [{ type: 'character', image_file: request.image }]
@@ -1324,7 +1334,7 @@ async function generateGeminiNative(upstream: UpstreamConfig, baseUrl: string, r
       const parsed = parseDataUrl(reference)
       if (!parsed || !/^image\/(?:png|jpeg|webp|gif)$/i.test(parsed.mime)) throw new ImageGenError('原生 Gemini 参考图需要 PNG、JPEG、WebP 或 GIF 数据', 'edit-image-invalid')
       const bytes = Buffer.from(parsed.base64, 'base64')
-      if (bytes.length > MAX_EDIT_IMAGE_BYTES) throw new ImageGenError('参考图片超过 10MB 上限', 'edit-image-too-large')
+      if (bytes.length > MAX_EDIT_IMAGE_BYTES) throw new ImageGenError('参考图片超过 20 MiB 上限', 'edit-image-too-large')
       parts.push({ inlineData: { mimeType: parsed.mime, data: parsed.base64 } })
     }
   }
@@ -1340,7 +1350,7 @@ async function generateGeminiNative(upstream: UpstreamConfig, baseUrl: string, r
   const body = JSON.stringify({ contents: [{ parts }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'], imageConfig, candidateCount: effectiveCount(request) } })
   const url = geminiEndpointUrl(upstream, baseUrl, model)
   const context = attemptContext(upstream, request, 'generate', url, 'POST', body, Date.now())
-  const budget = requestSignal(signal, 300_000)
+  const budget = requestSignal(signal, GEMINI_NATIVE_TIMEOUT_MS)
   let response: Response | undefined
   let text = ''
   let records: Array<Record<string, unknown>> = []
@@ -1384,7 +1394,7 @@ async function generateGeminiNative(upstream: UpstreamConfig, baseUrl: string, r
     throw failure
   } finally { budget.dispose() }
   // 图片链接保留完整签名；下载沿用既有同源鉴权保护，第三方地址不携带 Key。
-  return { images: await Promise.all(records.map(item => normalizeItem(item, upstream, signal, 120_000))) }
+  return { images: await Promise.all(records.map(item => normalizeItem(item, upstream, signal, GEMINI_NATIVE_IMAGE_FETCH_TIMEOUT_MS))) }
 }
 
 /** Resolve the exact Chat Completions endpoint for a channel. */

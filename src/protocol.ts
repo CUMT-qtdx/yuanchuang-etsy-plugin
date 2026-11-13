@@ -8,7 +8,7 @@
 export const IMAGEGEN_SETTINGS_NAMESPACE = 'dsh-imagegen'
 
 /** Published package version shared by the host updater and the client UI. */
-export const PLUGIN_VERSION = '2.0.0-etsy.9'
+export const PLUGIN_VERSION = '2.1.1'
 
 /** Same-origin route family (loopback-only, mirroring the dsh-ssh fence). */
 export const SETTINGS_API = {
@@ -156,6 +156,8 @@ export const STORAGE_API = {
 
 /** Host-mediated GitHub Release update routes. */
 export const UPDATE_API = {
+  status: '/api/dsh-imagegen/update/status',
+  download: '/api/dsh-imagegen/update/download',
   check: '/api/dsh-imagegen/update/check',
   apply: '/api/dsh-imagegen/update/apply',
 } as const
@@ -1248,8 +1250,20 @@ export interface UpdateInfo {
   /** Markdown release body shown in the update popover. */
   releaseNotes?: string
   /** How the current launcher allows this plugin to be updated. */
-  installMode?: 'cli' | 'host' | 'host-managed'
+  installMode?: 'cli' | 'host' | 'host-managed' | 'exe'
+  installer?: { name: string; url: string; size: number; sha256: string }
   profile?: string
+}
+
+/** 应用内更新只向界面暴露进度与结果，不返回账号或安装路径。 */
+export interface UpdateProgress {
+  phase: 'idle' | 'downloading' | 'ready' | 'restarting' | 'installing' | 'completed' | 'failed'
+  version?: string
+  receivedBytes: number
+  totalBytes: number
+  message?: string
+  updatedAt: number
+  rolledBack?: boolean
 }
 
 /** One history image reference as the browser consumes it (a served URL). */

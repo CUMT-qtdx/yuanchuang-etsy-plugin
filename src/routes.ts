@@ -33,6 +33,8 @@ import { testStorage, type StorageSyncConfig } from './storage-sync.ts'
 import { checkForUpdate, CURRENT_VERSION, installUpdate, updateInstallTarget, type UpdateHostContext } from './updater.ts'
 import { IMAGE_PRESETS } from './presets.ts'
 import { clearDiagnostics, listDiagnostics } from './diagnostics-store.ts'
+import { AppUpdateService } from './in-app-update.ts'
+import { productStages } from './etsy/selected-copy.ts'
 import { AGENT_IMAGE_API, CANVAS_API, CANVAS_SKILL_API, CLIENT_BOOT_API, CONVERSATION_IMAGE_API, DATA_FOLDER_API, DEFAULT_TEMPLATE_SOURCE_ID, DIAGNOSTICS_API, GALLERY_API, GENERATE_API, HISTORY_API, IMAGEGEN_SETTINGS_NAMESPACE, IMAGE_MODEL_API, PRESETS_API, PROMPT_ENHANCE_API, REVERSE_PROMPT_API, SETTINGS_API, STORAGE_API, SUBSCRIPTION_API, SUBSCRIPTION_PROVIDERS, TASK_API, TEMPLATE_FAVORITES_API, TEMPLATES_API, UPDATE_API, USAGE_API, isChannelProtocolPreference, isTemplateSourceId, type PptRunRequest, type PptRuntimeStatus, type ReversePromptRequest, type ReversePromptResult, type CanvasAssetRef, type CanvasDocument, type CanvasSkillCatalog, type CanvasSkillConfigApplyRequest, type CanvasSkillConfigApplyResult, type CanvasSkillConfigSaveRequest, type CanvasSkillConfigSaveResult, type CanvasSkillInstallRequest, type CanvasSkillInstallResult, type CanvasSkillLibrary, type CanvasSkillRemoveResult, type CanvasSkillRunRequest, type CanvasSkillTask, type GeneratedImage, type GenerateRequest, type HistoryEntry, type HistoryEntryInput, type ModelMapping, type PresetProviderView, type TemplateFavorite, type TemplateListResult, type TemplateRefreshResult, type TemplateSample } from './protocol.ts'
 
 /** Cap on JSON request bodies (settings ops and generate payloads are small). */
@@ -573,6 +575,7 @@ export function makeRoutes(deps: ImageGenRoutesDeps): WebRoute[] {
     }
   }
   const runtime = deps.runtime ?? new ImageGenerationRuntime(channelViewOf, history)
+  const appUpdater = new AppUpdateService({ busy: async () => runtime.queue.summaries().some(task => ['queued', 'running'].includes(task.status)) || (deps.etsy ? (await deps.etsy.list()).some(product => productStages(product).some(stage => ['queued', 'running'].includes(stage.status))) : false) })
 
   /** Resolve an alias (or the channel fallback) into a concrete generation
    *  request: picks the channel (explicit then default), maps alias → upstream
@@ -958,13 +961,32 @@ export function makeRoutes(deps: ImageGenRoutesDeps): WebRoute[] {
       handler: async (req, res) => {
         if (!guard(req, res, 'POST')) return
         try {
-          writeJson(res, 200, { ok: true, update: { ...await checkForUpdate(), ...updateInstallTarget(undefined, undefined, deps.resolveUpdateContext?.()) } })
+          const body = await readJsonBody(req)
+          writeJson(res, 200, { ok: true, update: await checkForUpdate(fetch, Date.now(), body?.force === true) })
         } catch (error) {
           writeJson(res, 200, { ok: false, code: 'update-check-failed', message: messageOf(error) })
         }
       },
     },
     // ----------------------------------------------- update apply
+    {
+      kind: 'exact', path: UPDATE_API.status,
+      handler: async (req, res) => {
+        if (!guard(req, res, 'POST')) return
+        try { writeJson(res, 200, { ok: true, progress: await appUpdater.status() }) }
+        catch (error) { writeJson(res, 200, { ok: false, message: messageOf(error) }) }
+      },
+    },
+    {
+      kind: 'exact', path: UPDATE_API.download,
+      handler: async (req, res) => {
+        if (!guard(req, res, 'POST')) return
+        try {
+          const body = await readJsonBody(req)
+          writeJson(res, 200, { ok: true, progress: await appUpdater.download(String(body?.version || '')) })
+        } catch (error) { writeJson(res, 200, { ok: false, message: messageOf(error) }) }
+      },
+    },
     {
       kind: 'exact',
       path: UPDATE_API.apply,
@@ -982,7 +1004,7 @@ export function makeRoutes(deps: ImageGenRoutesDeps): WebRoute[] {
             writeJson(res, 200, { ok: false, code: 'update-not-available', message: `version ${version} is not the latest available release` })
             return
           }
-          await installUpdate(version, undefined, undefined, undefined, deps.resolveUpdateContext?.())
+          await appUpdater.restart(version)
           writeJson(res, 200, { ok: true, currentVersion: CURRENT_VERSION, updatedVersion: version, restartRequired: true })
         } catch (error) {
           writeJson(res, 200, { ok: false, code: 'update-failed', message: messageOf(error) })

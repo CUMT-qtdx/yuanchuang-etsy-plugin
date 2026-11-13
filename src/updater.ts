@@ -5,12 +5,16 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { PLUGIN_VERSION, type UpdateInfo } from './protocol.ts'
 import { recordDiagnostic, redactDiagnosticText } from './diagnostics-store.ts'
+import { releaseInfo, compareReleaseVersions } from './release-discovery.ts'
 export type { UpdateInfo } from './protocol.ts'
 
 /** Keep this in sync with package.json for each published release. */
 export const CURRENT_VERSION = PLUGIN_VERSION
 export const PACKAGE_NAME = '@dickpy/dsh-imagegen'
-export const RELEASES_URL = 'https://api.github.com/repos/dickpy/dsh-imagegen/releases/latest'
+export const RELEASES_URL = 'https://api.github.com/repos/CUMT-qtdx/yuanchuang-etsy-plugin/releases/latest'
+// 定制分发身份独立于版本格式，后续 2.1.1 等纯数字版本仍使用单 EXE 升级。
+const CUSTOM_DISTRIBUTION = true
+const CUSTOM_RELEASES_URL = 'https://github.com/CUMT-qtdx/yuanchuang-etsy-plugin/releases'
 
 const CHECK_TIMEOUT_MS = 10_000
 const CACHE_TTL_MS = 15 * 60_000
@@ -44,14 +48,7 @@ let cached: { expiresAt: number; value: UpdateInfo } | undefined
 
 /** Compare stable semver triples; returns positive when `left` is newer. */
 export function compareVersions(left: string, right: string): number {
-  const parse = (value: string): [number, number, number] => {
-    const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(value.trim())
-    if (match === null) return [0, 0, 0]
-    return [Number(match[1]), Number(match[2]), Number(match[3])]
-  }
-  const a = parse(left)
-  const b = parse(right)
-  return a[0] - b[0] || a[1] - b[1] || a[2] - b[2]
+  try { return compareReleaseVersions(left, right) } catch { return 0 }
 }
 
 function normalizedReleaseVersion(tag: unknown): string | undefined {
@@ -60,13 +57,8 @@ function normalizedReleaseVersion(tag: unknown): string | undefined {
 }
 
 /** Read the latest stable GitHub Release, with a short host-side cache. */
-export async function checkForUpdate(fetchFn: typeof fetch = fetch, now = Date.now()): Promise<UpdateInfo> {
-  if (CURRENT_VERSION.includes('-etsy.')) return {
-    currentVersion: CURRENT_VERSION, latestVersion: CURRENT_VERSION, updateAvailable: false,
-    releaseUrl: 'https://github.com/dickpy/dsh-imagegen',
-    releaseNotes: '当前为 Etsy 定制开发版，请使用本地开发项目发布的安装包升级，以保留商品工作台功能。',
-  }
-  if (cached !== undefined && cached.expiresAt > now) return cached.value
+export async function checkForUpdate(fetchFn: typeof fetch = fetch, now = Date.now(), force = false): Promise<UpdateInfo> {
+  if (!force && cached !== undefined && cached.expiresAt > now) return cached.value
   const response = await fetchFn(RELEASES_URL, {
     headers: {
       accept: 'application/vnd.github+json',
@@ -77,20 +69,7 @@ export async function checkForUpdate(fetchFn: typeof fetch = fetch, now = Date.n
   if (!response.ok) throw new Error(`GitHub Releases returned HTTP ${response.status}`)
   const payload: unknown = await response.json()
   if (payload === null || typeof payload !== 'object') throw new Error('GitHub Releases returned malformed JSON')
-  const release = payload as GitHubRelease
-  if (release.draft === true || release.prerelease === true) throw new Error('latest GitHub Release is not stable')
-  const latestVersion = normalizedReleaseVersion(release.tag_name)
-  if (latestVersion === undefined) throw new Error('latest GitHub Release has an invalid version tag')
-  const releaseUrl = typeof release.html_url === 'string' ? release.html_url : 'https://github.com/dickpy/dsh-imagegen/releases'
-  const releaseNotes = typeof release.body === 'string' ? release.body.trim() : ''
-  const value: UpdateInfo = {
-    currentVersion: CURRENT_VERSION,
-    latestVersion,
-    updateAvailable: compareVersions(latestVersion, CURRENT_VERSION) > 0,
-    releaseUrl,
-    ...typeof release.published_at === 'string' ? { publishedAt: release.published_at } : {},
-    ...releaseNotes === '' ? {} : { releaseNotes: releaseNotes.slice(0, 20_000) },
-  }
+  const value: UpdateInfo = releaseInfo(payload, CURRENT_VERSION)
   cached = { expiresAt: now + CACHE_TTL_MS, value }
   return value
 }
@@ -140,7 +119,7 @@ export function installUpdate(
   env: NodeJS.ProcessEnv = process.env,
   host: UpdateHostContext = {},
 ): Promise<void> {
-  if (CURRENT_VERSION.includes('-etsy.')) return Promise.reject(new Error('当前为 Etsy 定制开发版，请使用本地开发安装包升级，避免覆盖定制功能'))
+  if (CUSTOM_DISTRIBUTION) return Promise.reject(new Error('当前为 Etsy 定制开发版，请从元创项目 Releases 下载 EXE 安装包升级'))
   if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) return Promise.reject(new Error('invalid update version'))
   const { profile, installMode } = updateInstallTarget(argv, env, host)
   const command = process.platform === 'win32' ? 'dsh.cmd' : 'dsh'

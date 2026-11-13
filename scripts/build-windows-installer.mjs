@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
+import { isInstallerVersion } from './release-version.mjs'
 
 if (process.platform !== 'win32') throw new Error('请在 Windows 上构建安装器')
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -13,7 +14,7 @@ const args = process.argv.slice(2)
 const option = name => args.includes(name) ? args[args.indexOf(name) + 1] : undefined
 const packageJson = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'))
 const version = packageJson.version
-if (!/^\d+\.\d+\.\d+-etsy\.\d+$/.test(version)) throw new Error('版本号必须采用 2.0.0-etsy.8 格式')
+if (!isInstallerVersion(version)) throw new Error('版本号无效，请使用 2.0.10-etsy 或 2.1.1 格式')
 const output = path.resolve(option('--output') || path.join(root, 'out/windows-installer'))
 const dependenciesRoot = path.resolve(option('--dependencies-root') || root)
 const npmCli = path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js')

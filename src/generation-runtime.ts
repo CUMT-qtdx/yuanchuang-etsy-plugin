@@ -10,7 +10,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { generateImage, ImageGenError, type UpstreamConfig } from './engine.ts'
+import { generateImage, imageGenerationBudgetMs, ImageGenError, type UpstreamConfig } from './engine.ts'
 import { detectImageMime } from './image-format.ts'
 import { vendorOf, type SubscriptionManager, type SubscriptionReferenceImage } from './subscription/manager.ts'
 import { appendHistory } from './history-store.ts'
@@ -44,7 +44,11 @@ export class ImageGenerationRuntime {
   ) {
     // Every task runs in parallel up to this small host-wide limit; a
     // four-model comparison fits within it in a single wave.
-    this.queue = new GenerationTaskQueue((request, signal) => this.run(request, signal), 4)
+    this.queue = new GenerationTaskQueue((request, signal) => this.run(request, signal), 4, request => {
+      const view = this.resolve()
+      const channel = view.channels.find(channel => channel.id === request.channelId) ?? view.channels.find(channel => channel.id === view.defaultChannelId) ?? view.channels[0]
+      return channel ? imageGenerationBudgetMs(channel) : undefined
+    })
   }
 
   async run(request: GenerateRequest, signal?: AbortSignal): Promise<GenerateResult> {

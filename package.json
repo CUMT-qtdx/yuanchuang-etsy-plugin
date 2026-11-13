@@ -1,7 +1,7 @@
 {
   "name": "@dickpy/dsh-imagegen",
   "description": "AI image generation plugin for the dsh web GUI: text-to-image and image-to-image through configurable provider channels (gpt-image-2 / grok-imagine-image / nanobanana series / seedream-5.0-pro / dall-e-3, with native xAI Grok Imagine, Google Nano Banana and ByteDance Seedream request shaping), per-channel model catalogs, a three-column studio beside the native conversation, an infinite canvas with node-graph workflows (annotation boxes with attached prompt cards, local background removal, AI layer split, per-node model choice, file nodes with any-file upload, and a canvas skill system covering skill-driven next steps on every node: text polish, image description, content extraction, and a host-driven image-to-editable-ppt pipeline that rebuilds the visual layer from measured pixels (the legacy headless-agent driver stays selectable), with a local skill library that installs and removes skills from URLs or uploaded archives), an ecommerce product-set mode and a prompt template library.",
-  "version": "2.0.0-etsy.9",
+  "version": "2.1.1",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -80,15 +80,20 @@
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "docs/releases/v2.0.0-etsy.9.md",
-    "docs/TokenFree香蕉生图_配置教程.md"
+    "docs/TokenFree香蕉生图_配置教程.md",
+    "docs/releases/v2.0.10-etsy.md",
+    "docs/版本发布.md",
+    "distribution/windows/Apply-Update.ps1",
+    "docs/releases/v2.1.1.md",
+    "docs/插件内更新说明.md"
   ],
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dickpy/dsh-imagegen.git"
+    "url": "git+https://github.com/CUMT-qtdx/yuanchuang-etsy-plugin.git"
   },
   "scripts": {
-    "test:etsy": "tsdown --config scripts/etsy-test.config.ts && node --test scripts/etsy-workflow.test.mjs scripts/etsy-http.test.mjs scripts/etsy-host-model.test.mjs scripts/reference-workflow.test.mjs scripts/copy-contract.test.mjs scripts/copy-cache-boundaries.test.mjs scripts/workflow-recovery-regression.test.mjs scripts/copy-quality-regression.test.mjs scripts/listing-export-regression.test.mjs scripts/copy-merge-review.test.mjs scripts/creativity-strategy.test.mjs scripts/workflow-idle-regression.test.mjs scripts/creation-v1.test.mjs scripts/felt-rules.test.mjs scripts/multi-view-consistency.test.mjs scripts/material-lock.test.mjs scripts/first-pass-material.test.mjs scripts/view-direction.test.mjs scripts/spatial-material.test.mjs scripts/felt-material-v1-0-2.test.mjs scripts/creation-rename.test.mjs scripts/studio-v2.test.mjs",
+    "test:etsy": "tsdown --config scripts/etsy-test.config.ts && node --test scripts/etsy-workflow.test.mjs scripts/etsy-http.test.mjs scripts/etsy-host-model.test.mjs scripts/reference-workflow.test.mjs scripts/copy-contract.test.mjs scripts/copy-cache-boundaries.test.mjs scripts/workflow-recovery-regression.test.mjs scripts/copy-quality-regression.test.mjs scripts/listing-export-regression.test.mjs scripts/copy-merge-review.test.mjs scripts/creativity-strategy.test.mjs scripts/workflow-idle-regression.test.mjs scripts/creation-v1.test.mjs scripts/felt-rules.test.mjs scripts/multi-view-consistency.test.mjs scripts/material-lock.test.mjs scripts/first-pass-material.test.mjs scripts/view-direction.test.mjs scripts/spatial-material.test.mjs scripts/felt-material-v1-0-2.test.mjs scripts/creation-rename.test.mjs scripts/studio-v2.test.mjs scripts/generation-budget.test.mjs scripts/image-limits.test.mjs",
     "test:felt:browser": "tsdown --config scripts/etsy-test.config.ts && tsdown --config scripts/reference-preview.config.ts && node scripts/felt-photography-browser-test.mjs",
     "docs:felt-examples": "tsdown --config scripts/etsy-test.config.ts && node scripts/write-felt-examples.mjs",
     "test:etsy:browser": "tsdown --config scripts/etsy-test.config.ts && tsdown --config scripts/etsy-preview.config.ts && node scripts/etsy-browser-test.mjs",
@@ -101,7 +106,7 @@
     "prepare": "tsdown",
     "build": "tsdown",
     "test": "pnpm run test:unit && pnpm run test:etsy && pnpm run test:e2e",
-    "test:unit": "node --test scripts/conversation-sync.test.mjs scripts/agent-image-config.test.mjs scripts/image-clipboard.test.mjs scripts/gemini-native.test.mjs",
+    "test:unit": "node --test scripts/conversation-sync.test.mjs scripts/agent-image-config.test.mjs scripts/image-clipboard.test.mjs scripts/gemini-native.test.mjs scripts/release-version.test.mjs scripts/in-app-update.test.mjs",
     "test:e2e": "pnpm exec tsdown --config scripts/conversation-preview.config.ts && node scripts/conversation-dom-e2e.mjs && pnpm exec tsdown --config scripts/toolview-preview.config.ts && node scripts/toolview-dom-e2e.mjs",
     "test:browser": "pnpm exec tsdown --config scripts/conversation-preview.config.ts && node scripts/conversation-browser-test.mjs",
     "watch": "tsdown --watch",
@@ -109,6 +114,10 @@
     "fetch-templates": "node scripts/fetch-templates.mjs",
     "release:exe": "node scripts/build-windows-installer.mjs",
     "test:installer": "node scripts/windows-installer-smoke.mjs",
-    "test:resolution:browser": "tsdown --config scripts/etsy-test.config.ts && tsdown --config scripts/reference-preview.config.ts && node scripts/reference-resolution-browser-test.mjs"
+    "test:resolution:browser": "tsdown --config scripts/etsy-test.config.ts && tsdown --config scripts/reference-preview.config.ts && node scripts/reference-resolution-browser-test.mjs",
+    "test:generation-budget": "tsdown --config scripts/etsy-test.config.ts && node --test scripts/generation-budget.test.mjs",
+    "test:reference:isolation": "tsdown --config scripts/etsy-test.config.ts && tsdown --config scripts/reference-preview.config.ts && node scripts/reference-isolation-browser-test.mjs",
+    "version:next": "node scripts/next-version.mjs",
+    "test:update": "node --test scripts/in-app-update.test.mjs"
   }
 }

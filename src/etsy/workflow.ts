@@ -43,6 +43,10 @@ export class EtsyWorkflow {
     this.store = deps.store ?? new EtsyStore()
     this.ready = this.recover()
     this.unsubscribe = deps.queue.subscribe(task => {
+      if (task.status === 'running') void this.onGenerationStarted(task).catch(error => {
+        const product = this.products.find(product => product.images.some(image => image.taskId === task.id))
+        if (product) this.recordAsyncFailure(product.id, error)
+      })
       // 使用现有队列的完成回调；异步业务失败不能打断原生生图队列。
       if (['completed', 'failed', 'cancelled'].includes(task.status)) void this.onGeneration(task).catch(error => {
         const product = this.products.find(product => product.images.some(image => image.taskId === task.id))
@@ -232,8 +236,7 @@ export class EtsyWorkflow {
       const task = this.deps.queue.submit({ ...request, n: 1, projectId: product.id, projectName: product.facts.name })
       submitted = true; item.taskId = task.id
       await this.store.save(product)
-      const timer = setTimeout(() => { void this.generationTimeout(product.id, item.id).catch(error => this.recordAsyncFailure(product.id, error)) }, product.options.timeoutMs * 3)
-      timer.unref?.(); this.generationTimers.set(task.id, timer)
+      // running 事件会在提交后经同一事务队列处理，此处不再从入队时开始计算生图超时。
     } catch (error) {
       // 已派发的请求不能自动重发；派发前失败则保留可重试的明确失败状态。
       item.generation.status = submitted ? 'unknown' : 'failed'
@@ -324,6 +327,20 @@ export class EtsyWorkflow {
     product.calls.push(call)
     await this.store.save(product)
     return call
+  }
+  private async onGenerationStarted(task: GenerationTask): Promise<void> {
+    await this.tx(async () => {
+      const product = this.products.find(product => product.images.some(image => image.taskId === task.id))
+      const image = product?.images.find(image => image.taskId === task.id)
+      if (!product || !image || image.generation.status !== 'running' || this.deps.queue.get(task.id)?.status !== 'running' || this.generationTimers.has(task.id)) return
+      const startedAt = task.startedAt ?? Date.now()
+      image.generation.startedAt = startedAt
+      const budget = Math.max(product.options.timeoutMs * 3, this.deps.queue.executionBudgetMs(task.request) ?? 0)
+      const remaining = Math.max(0, budget - (Date.now() - startedAt))
+      const timer = setTimeout(() => { void this.generationTimeout(product.id, image.id).catch(error => this.recordAsyncFailure(product.id, error)) }, remaining)
+      timer.unref?.(); this.generationTimers.set(task.id, timer)
+      await this.store.save(product)
+    })
   }
   private async onGeneration(task: GenerationTask): Promise<void> {
     await this.tx(async () => {

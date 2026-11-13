@@ -14,7 +14,14 @@ export class GenerationTaskQueue {
   constructor(
     private readonly run: (request: GenerateRequest, signal: AbortSignal) => Promise<GenerateResult>,
     private readonly concurrency = 1,
+    private readonly executionBudget?: (request: GenerateRequest) => number | undefined,
   ) {}
+
+  /** 执行预算不包含排队等待；由实际运行适配器提供生成与下载预算。 */
+  executionBudgetMs(request: GenerateRequest): number | undefined {
+    const value = this.executionBudget?.(request)
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined
+  }
 
   list(): GenerationTask[] {
     return this.tasks.map(task => this.snapshot(task))
