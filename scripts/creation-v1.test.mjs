@@ -71,7 +71,7 @@ test('定稿自动生成设定卡，只给主图文案，多角度使用固定�
   const masterUrl = await workflow.store.dataUrl(p.id, master.files[0])
   for (const view of views) {
     const request = queue.get(view.taskId).request
-    assert.equal(request.image, masterUrl); assert.match(request.prompt, /翅膀保持线条/); assert.match(request.prompt, /Stripes must remain stripes/)
+    assert.equal(request.image, masterUrl); assert.match(request.prompt, /翅膀保持线条/); assert.match(request.prompt, /Each surface pattern keeps its type and shape/)
     assert.equal(view.parentImageId, master.id); assert.equal(view.copyStage.status, 'skipped')
   }
   assert.equal(contexts.filter(x => x.context?.identity).length, 2)

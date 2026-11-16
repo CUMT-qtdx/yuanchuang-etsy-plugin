@@ -1,5 +1,6 @@
 import type { PhotographySettings } from './photography-options.ts'
 import type { MultiViewContext } from '../multi-view/consistency-v1.ts'
+import type { CompositionTarget } from './photography-contract.ts'
 
 export type FeltPart = 'body' | 'face' | 'hair' | 'beard' | 'wings' | 'petals' | 'leaves' | 'shell' | 'clothing' | 'trim' | 'felt-accessories' | 'curly-overlay'
 export type MixedMaterial = 'bead-eyes' | 'wire-glasses' | 'paper' | 'woven-ribbon' | 'whiskers'
@@ -33,6 +34,8 @@ export interface FeltRequestContext {
   multiReference: boolean
   photography: PhotographySettings
   multiView?: MultiViewContext
+  designPreservation?: { version: '1.0' | '1.1'; locks: string[]; source?: 'reference-image'; referenceRoles?: Array<{ image: number; role: string; note: string }> }
+  compositionGuide?: { image: number; version: '1.1'; subjectImage?: number; currentImage?: number }
 }
 export interface FeltApplication {
   library: 'etsy-real-needle-felt'
@@ -49,7 +52,10 @@ export interface FeltApplication {
   ruleIds: string[]
   profile: FeltProfile
   prompt: string
-  modules: { needle_felt_v1_0?: string; needle_felt_v1_0_2?: string; needle_felt_v2_0?: string; felt_photography_v1_0?: string; felt_composition_v1_0?: string; custom_background_v1_0?: string; multi_view_consistency_v1_0?: string; approved_material_lock_v1_0?: string; hero_surface_continuity_v1_0?: string; product_view_direction_v1_0?: string; product_spatial_v1_0?: string }
+  modules: { design_preservation_v1_0?: string; design_preservation_v1_1?: string; needle_felt_v1_0?: string; needle_felt_v1_0_2?: string; needle_felt_v2_0?: string; felt_photography_v1_0?: string; felt_composition_v1_0?: string; custom_background_v1_0?: string; multi_view_consistency_v1_0?: string; approved_material_lock_v1_0?: string; hero_surface_continuity_v1_0?: string; product_view_direction_v1_0?: string; product_spatial_v1_0?: string }
   photography: PhotographySettings
   multiView?: MultiViewContext
+  designPreservation?: FeltRequestContext['designPreservation']
+  compositionTarget?: CompositionTarget
+  compositionGuide?: FeltRequestContext['compositionGuide']
 }

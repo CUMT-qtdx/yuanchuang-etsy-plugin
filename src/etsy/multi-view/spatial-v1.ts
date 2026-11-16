@@ -47,6 +47,12 @@ export function spatialLocks(locks: string[], spatial?: SpatialIdentity): string
   const neutral = locks.map(lock => lock.replace(/(?:角色自身)?[左右](?=手|臂|肩|腰|腿|耳|眼|脚|侧)/g, '主图对应的').replace(/\b(?:left|right)\s+(?=hand|arm|shoulder|hip|leg|ear|eye|side)/gi, 'original '))
   return [...neutral, ...(normalizeSpatial(spatial)?.anchors ?? []).map(a => `主图画面${a.screenSide === 'left' ? '左' : a.screenSide === 'right' ? '右' : '中间或不确定'}侧：${a.label}；连接位置：${a.attachment}；可见依据：${a.evidence}`)]
 }
+/** 与 spatialLocks 相同的处理，用于英文形象记录：正背面主图的左右措辞改为“主图对应侧”，并附上画面坐标锚点。 */
+export function spatialLocksEn(locks: string[], spatial?: SpatialIdentity): string[] {
+  if (!spatial || !['front','back'].includes(spatial.sourceFacing)) return locks
+  const neutral = locks.map(lock => lock.replace(/\b(?:left|right)\s+(?=hand|arm|shoulder|hip|leg|ear|eye|side)/gi, 'original '))
+  return [...neutral, ...(normalizeSpatial(spatial)?.anchors ?? []).map(a => `Hero-image ${a.screenSide === 'left' || a.screenSide === 'right' ? `${a.screenSide} side` : 'center or uncertain position'}: ${a.label}; attached at: ${a.attachment}`)]
+}
 export function validateSpatialChecks(value: unknown, expected: SpatialExpectation[]): SpatialCheck[] {
   const rows = Array.isArray(value) ? value : []
   return expected.map(a => {

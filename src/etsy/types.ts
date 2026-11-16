@@ -8,14 +8,16 @@ import type { SpatialIdentity } from './multi-view/spatial-v1.ts'
 
 // 商品档案只保存业务数据，不保存模型密钥。
 export type ProductType = 'unspecified' | 'physical_felt' | 'digital_illustration' | 'digital_portrait'
-export type CreativityMode = 'gentle' | 'balanced' | 'bold'
+export type CreativityMode = 'preserve' | 'gentle' | 'balanced' | 'bold'
 export type CreationTask = 'redesign' | 'felt-conversion' | 'flat-to-felt'
 export type ReferenceRole = 'subject' | 'detail' | 'material' | 'palette' | 'view'
 export interface DesignReference { file: string; role: ReferenceRole; note: string }
 export interface ReferenceInput { dataUrl: string; role: ReferenceRole; note: string }
 export interface PlanningOptions { count: number; task: CreationTask; references: ReferenceInput[]; previousDirections?: string[]; photography?: PhotographySettings; visualRuleVersion?: string; materialPreset?: import('./felt/types.ts').MaterialPreset }
 export type ViewAngle = 'front' | 'three-quarter' | 'left' | 'right' | 'back'
-export interface IdentitySpec { summary: string; locks: string[]; unseen: string[]; feltProfile?: FeltProfile; visualRuleVersion?: string; materialAppearance?: MaterialAppearance; spatial?: SpatialIdentity }
+/** 给生图模型用的英文形象记录；basis 是生成时中文 locks 的快照，员工改过中文记录后自动失效。 */
+export interface IdentityEnglish { summary: string; locks: string[]; basis: string }
+export interface IdentitySpec { summary: string; locks: string[]; unseen: string[]; english?: IdentityEnglish; feltProfile?: FeltProfile; visualRuleVersion?: string; materialAppearance?: MaterialAppearance; spatial?: SpatialIdentity }
 export interface FinalDesign { id: string; imageId: string; notes: string; createdAt: number; planning: Stage; spec?: IdentitySpec; specRevision?: number; specHistory?: IdentitySpec[]; approvedImageIds: string[]; requests: Array<{ key: string; imageIds: string[] }>; request: GenerateRequest; multiViewAnchor?: MultiViewAnchor; materialPlanning?: Stage; materialReference?: MaterialReference; sideBackModel?: Pick<GenerateRequest, 'channelId' | 'model'>; directionGuides?: Array<{ facing: 'screen-left' | 'screen-right'; file: string; version: '1.0' }> }
 export type StageStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'unknown' | 'skipped'
 export interface ProductFacts {
@@ -46,6 +48,7 @@ export interface QualityReport {
   assessedAt: number
   model: string
   advisory: true
+  designPreservation?: Record<'design' | 'material' | 'photography', { status: QualityReport['status']; evidence: string }>
   viewChecks?: ViewChecks
   materialComparison?: MaterialComparison
   viewpointCheck?: ViewpointCheck
@@ -94,9 +97,9 @@ export interface ProductImage {
   version?: number
 }
 export interface DesignTemplateSlots { subject?: string; quantity?: string; pose?: string; cameraView?: string; facialFeatures?: string; colorPalette?: string }
-export interface DesignPlan { id: string; name: string; direction: string; changes: string[]; prompt: string; designBrief?: string; changeAxes?: string[]; feltProfile?: FeltProfile; templateSlots?: DesignTemplateSlots }
-export interface ReferencePlan { name: string; summary: string; keep: string[]; uncertainties: string[]; plans: DesignPlan[]; strategyVersion?: 2; creativity?: CreativityMode; task?: CreationTask; references?: Array<{ role: ReferenceRole; note: string }>; feltProfile?: FeltProfile; visualRuleVersion?: string; materialPreset?: import('./felt/types.ts').MaterialPreset }
-export interface VisionContext { materialPreset?: import('./felt/types.ts').MaterialPreset; creativity?: CreativityMode; plan?: DesignPlan; editInstruction?: string; identity?: IdentitySpec; angle?: ViewAngle; photography?: PhotographySettings; multiView?: MultiViewContext }
+export interface DesignPlan { id: string; name: string; direction: string; changes: string[]; changesEn?: string[]; prompt: string; designBrief?: string; changeAxes?: string[]; feltProfile?: FeltProfile; templateSlots?: DesignTemplateSlots }
+export interface ReferencePlan { name: string; summary: string; keep: string[]; keepEn?: string[]; uncertainties: string[]; plans: DesignPlan[]; strategyVersion?: 2; creativity?: CreativityMode; task?: CreationTask; references?: Array<{ role: ReferenceRole; note: string }>; feltProfile?: FeltProfile; visualRuleVersion?: string; materialPreset?: import('./felt/types.ts').MaterialPreset }
+export interface VisionContext { designPreservation?: FeltApplication['designPreservation']; materialPreset?: import('./felt/types.ts').MaterialPreset; creativity?: CreativityMode; plan?: DesignPlan; editInstruction?: string; identity?: IdentitySpec; angle?: ViewAngle; photography?: PhotographySettings; multiView?: MultiViewContext }
 export interface CopyContext { plan?: DesignPlan; image?: string; imageId: string; editInstruction?: string; parentImageId?: string; repair?: EtsyCopy }
 export interface CallRecord {
   id: string
@@ -126,7 +129,7 @@ export interface EtsyProduct {
   copyFactsRevision?: number
   planning?: Stage
   referencePlan?: ReferencePlan
-  creativity?: 'gentle' | 'balanced' | 'bold'
+  creativity?: CreativityMode
   creationTask?: CreationTask
   visualRuleVersion?: string
   photography?: PhotographySettings

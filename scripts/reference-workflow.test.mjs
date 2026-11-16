@@ -38,8 +38,15 @@ test('空提示词参考图：四张图分别自动准备文案，重复完成�
 test('四份文案提前完成，快速切图只读缓存，后台并发保持上限', async t => {
   let active = 0, maxActive = 0
   const seen = []
+  // 以第二个请求真正进入为并发信号，避免构建占用CPU时30毫秒定时器误判串行。
+  let releaseOverlap
+  const overlap = new Promise(resolve => { releaseOverlap = resolve })
+  const deadline = setTimeout(() => releaseOverlap(), 3000)
+  t.after(() => { clearTimeout(deadline); releaseOverlap() })
   const { workflow, counts } = await setup(t, { copy: async (config, f, signal, context) => {
     active++; maxActive = Math.max(maxActive, active); seen.push(context?.imageId)
+    if (active >= 2) releaseOverlap()
+    await overlap
     await new Promise(resolve => setTimeout(resolve, 30)); active--
     return { titles: [], description: 'mock selected copy', tags: [], factsUsed: {}, humanConfirmation: [], attributes: {}, sellingPoints: [], deliveryNotes: '', selectedTitle: 0, reviewRequired: true }
   } })
@@ -74,7 +81,7 @@ test('自然语言修改为新图准备独立文案，原图及人工稿保留�
   assert.deepEqual(after.imageCopies[parent.id], originalCopy)
   assert.equal(contexts.find(context => context.imageId === child.id).parentImageId, parent.id)
   const request = queue.get(child.taskId).request
-  assert.match(request.prompt, /围巾改成蓝色/); assert.equal(request.mode, 'edit'); assert.equal(request.images.length, 1)
+  assert.match(request.prompt, /围巾改成蓝色/); assert.equal(request.mode, 'edit'); assert.equal(request.images.length, 2, '保留用户辅助参考并额外附加构图引导')
 })
 test('切到正在准备或失败的图片立即清空旧稿，乱序完成不覆盖当前选择', async t => {
   const gates = new Map(), seen = []

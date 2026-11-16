@@ -1,10 +1,12 @@
+import { compositionTarget } from './felt/photography-contract.ts'
+import { createCompositionGuide } from './felt/composition-guide.ts'
 import { randomUUID } from 'node:crypto'
 import type { GenerationTask, GenerateRequest, GeneratedImage } from '../protocol.ts'
 import type { GenerationTaskQueue } from '../task-queue.ts'
 import type { PromptModelConfig } from '../prompt-enhancer.ts'
 import { EtsyStore } from './store.ts'
 import { liveEtsyModels, mergeCopyRepair, validateCopy, validateReferencePlan, type EtsyModels } from './models.ts'
-import { emptyStage, type CallRecord, type CopyContext, type EtsyProduct, type ProductImage, type ProductStart, type ReferencePlan, type Stage, type FinalDesign, type ViewAngle, type ReferenceInput } from './types.ts'
+import { emptyStage, type CreativityMode, type CallRecord, type CopyContext, type EtsyProduct, type ProductImage, type ProductStart, type ReferencePlan, type Stage, type FinalDesign, type ViewAngle, type ReferenceInput } from './types.ts'
 import { selectedCopy, productStages } from './selected-copy.ts'
 import { listingUsesEnglish } from './copy-style.ts'
 import { creativityMode, referenceGenerationPrompt, refinementPrompt } from './design-strategy.ts'
@@ -12,7 +14,7 @@ import { viewPrompt } from './creation-flow.ts'
 import { FELT_RULES_VERSION, composeFeltPrompt, makeFeltContext, normalizeFeltProfile, profileForEdit, normalizeProfileV2 } from './felt/composer.ts'
 import { CURRENT_MATERIAL, normalizeMaterialPreset } from './felt/material-v1-0-2.ts'
 import { defaultPhotography, effectivePhotography, normalizePhotography, photographyBlock } from './felt/photography-options.ts'
-import { isCheckedReference, multiViewPrompt, turntableOrder, type MultiViewContext } from './multi-view/consistency-v1.ts'
+import { identityCard, isCheckedReference, multiViewPrompt, turntableOrder, type MultiViewContext } from './multi-view/consistency-v1.ts'
 import { normalizeMaterialAppearance } from './multi-view/material-lock-v1.ts'
 import { isSideBack, firstPassSurfacePrompt } from './multi-view/surface-continuity-v1.ts'
 import { directionFor, validateViewpoint } from './multi-view/view-direction-v1.ts'
@@ -140,14 +142,16 @@ export class EtsyWorkflow {
       return { deleted: true, id }
     })
   }
-  async start(input: ProductStart, existingImage?: GeneratedImage, reference?: { creativity: 'gentle' | 'balanced' | 'bold' }): Promise<EtsyProduct> {
+  async start(input: ProductStart, existingImage?: GeneratedImage, reference?: { creativity: CreativityMode }): Promise<EtsyProduct> {
     return this.tx(async () => {
       if (this.disposed) throw new Error('商品工作流已关闭')
       if (this.deps.enabled?.() === false) throw new Error('生图插件已停用，请先在设置中启用')
       const existing = this.products.find(product => product.requestKey === input.requestKey)
       if (existing) return structuredClone(existing)
       const { image, images, feltContext: _previousFelt, ...request } = input.generation
-      request.materialPreset = normalizeMaterialPreset(request.materialPreset ?? CURRENT_MATERIAL)
+      // 新请求一律使用当前材质规则；旧版本只保留在历史图片记录中，不再用于发出请求。
+      if (request.materialPreset !== undefined) normalizeMaterialPreset(request.materialPreset)
+      request.materialPreset = CURRENT_MATERIAL
       const photography = normalizePhotography(input.photography, { ...defaultPhotography(input.creationTask ?? 'redesign'), ...(request.size !== 'auto' ? { aspect_ratio: request.size } : {}) })
       photographyBlock(effectivePhotography(photography, input.facts.requirements), 'minimal', input.facts.requirements)
       const product: EtsyProduct = {
@@ -215,16 +219,40 @@ export class EtsyWorkflow {
       const photo = normalizePhotography(request.photography ?? item.visualRules?.photography ?? request.feltContext?.photography ?? parent?.visualRules?.photography ?? product.photography, { ...defaultPhotography(product.creationTask, stage !== 'generation'), ...(request.size !== 'auto' ? { aspect_ratio: request.size } : {}) })
       const requirements = [product.facts.requirements, ...(product.designReferences ?? []).map(reference => reference.note), design?.notes].filter(Boolean).join('\n')
       const description = [plan?.name, plan?.direction, plan?.changes.join(' '), plan?.prompt, design?.spec?.summary, design?.spec?.locks.join(' '), product.facts.name].filter(Boolean).join('\n')
-      const selectedMaterial = request.materialPreset ?? item.visualRules?.materialPreset ?? parent?.visualRules?.materialPreset ?? product.request.materialPreset ?? CURRENT_MATERIAL
+      // 旧项目的重试、精修同样改用当前材质规则，不再发送旧版长提示词。
+      const selectedMaterial = CURRENT_MATERIAL
       const sourceProfile = (stage === 'refinement' || item.editInstruction ? parent?.visualRules?.profile : undefined) ?? design?.spec?.feltProfile ?? plan?.feltProfile ?? product.referencePlan?.feltProfile
-      const profile = selectedMaterial === 'needle_felt_v2_0' ? normalizeProfileV2(sourceProfile) : profileForEdit(sourceProfile, description, item.editInstruction ?? '')
+      let profile = selectedMaterial === 'needle_felt_v2_0' ? normalizeProfileV2(sourceProfile) : profileForEdit(sourceProfile, description, item.editInstruction ?? '')
       const viewContext = stage === 'multi-view' ? request.feltContext?.multiView : undefined
-      const visualContext = makeFeltContext({ basePrompt: request.feltContext?.basePrompt ?? request.prompt, stage, task: product.creationTask ?? 'redesign',
+      const designPreservation = stage !== 'multi-view' && product.creativity === 'preserve'
+        ? { version: '1.1' as const, source: 'reference-image' as const, locks: [], referenceRoles: (product.designReferences ?? []).map((reference, index) => ({ image: index + (stage === 'refinement' ? 2 : 1), role: reference.role, note: reference.note })) }
+        : undefined
+      if (designPreservation) profile = normalizeProfileV2(undefined)
+      let visualContext = makeFeltContext({ designPreservation, basePrompt: designPreservation ? '' : request.feltContext?.basePrompt ?? request.prompt, stage, task: product.creationTask ?? 'redesign',
         materialPreset: selectedMaterial,
         profile,
         description,
         userRequirements: viewContext ? design?.notes : requirements, latestInstruction: item.editInstruction, multiReference: !!request.images?.length, version: product.visualRuleVersion ?? FELT_RULES_VERSION, photography: photo, multiView: viewContext })
-      const applied = composeFeltPrompt(visualContext, targetModel.model, targetModel.subscription)
+      // 主体参考原封保留，另附只有上下边界的构图图；参考已达上限时不删用户图片。
+      let applied = composeFeltPrompt(visualContext, targetModel.model, targetModel.subscription)
+      const target = stage !== 'multi-view' ? compositionTarget(applied.photography) : undefined
+      const referenceCount = (request.image ? 1 : 0) + (request.images?.length ?? 0)
+      const referenceLimit = /gemini-2\.5-flash-image/i.test(targetModel.model) ? 3 : 5
+      if (target && referenceCount > 0 && referenceCount < referenceLimit) {
+        const guide = createCompositionGuide(target, applied.photography.aspect_ratio)
+        if (guide) {
+          const guideUrl = `data:image/png;base64,${guide.toString('base64')}`
+          if (designPreservation && request.image) {
+            // 构图图先给画幅目标，原始商品图仍完整传入并单独标为造型来源。
+            visualContext = { ...visualContext, compositionGuide: { image: 1, version: '1.1', subjectImage: stage === 'refinement' ? 3 : 2, ...(stage === 'refinement' ? { currentImage: 2 } : {}) }, designPreservation: { ...designPreservation, referenceRoles: designPreservation.referenceRoles.map(role => ({ ...role, image: role.image + 1 })) } }
+            request = { ...request, image: guideUrl, images: [request.image, ...(request.images ?? [])] }
+          } else {
+            visualContext = { ...visualContext, compositionGuide: { image: referenceCount + 1, version: '1.1' } }
+            request = { ...request, images: [...(request.images ?? []), guideUrl] }
+          }
+          applied = composeFeltPrompt(visualContext, targetModel.model, targetModel.subscription)
+        }
+      }
       item.visualRules = applied
       request = { ...request, prompt: applied.prompt, feltContext: visualContext, size: applied.photography.aspect_ratio }
       item.renderSettings = { model: request.model, upstream: request.upstream, channelId: request.channelId, size: request.size, quality: request.quality, detail: request.detail }
@@ -255,7 +283,7 @@ export class EtsyWorkflow {
       const references = await Promise.all(product.referenceFiles.map(file => this.store.dataUrl(id, file)))
       for (const image of product.images) {
         const plan = product.referencePlan.plans.find(plan => plan.id === image.planId)
-        if (image.kind !== 'view' && plan && image.generation.status === 'queued') await this.dispatchImage(product, image, { ...product.request, mode: 'edit', image: references[0], images: references.slice(1), prompt: referenceGenerationPrompt(product.referencePlan, plan, creativityMode(product.creativity), product.facts.requirements, product.request.materialPreset ?? CURRENT_MATERIAL) })
+        if (image.kind !== 'view' && plan && image.generation.status === 'queued') await this.dispatchImage(product, image, { ...product.request, mode: 'edit', image: references[0], images: references.slice(1), prompt: referenceGenerationPrompt(product.referencePlan, plan, creativityMode(product.creativity), product.facts.requirements, CURRENT_MATERIAL) })
       }
       await this.store.save(product)
     })
@@ -296,13 +324,13 @@ export class EtsyWorkflow {
       const references: ReferenceInput[] = await Promise.all(product.referenceFiles.map(async (file, index) => ({ dataUrl: await this.store.dataUrl(id, file), role: product.designReferences?.[index]?.role ?? (index === 0 ? 'subject' : 'detail'), note: product.designReferences?.[index]?.note ?? '' })))
       const count = product.images.filter(image => image.kind !== 'view').length
       const work = planner(config, product.facts, references[0].dataUrl, product.creativity ?? 'balanced', controller.signal, { count, task: product.creationTask ?? 'redesign', references, previousDirections: product.previousDirections,
-        visualRuleVersion: product.visualRuleVersion ?? FELT_RULES_VERSION, materialPreset: product.request.materialPreset ?? CURRENT_MATERIAL, photography: effectivePhotography(normalizePhotography(product.photography, defaultPhotography(product.creationTask)), product.facts.requirements) })
+        visualRuleVersion: product.visualRuleVersion ?? FELT_RULES_VERSION, materialPreset: CURRENT_MATERIAL, photography: effectivePhotography(normalizePhotography(product.photography, defaultPhotography(product.creationTask)), product.facts.requirements) })
       const aborted = new Promise<never>((_, reject) => controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true }))
-      const plan = validateReferencePlan({ ...await Promise.race([work, aborted]), materialPreset: product.request.materialPreset ?? CURRENT_MATERIAL }, count)
+      const plan = validateReferencePlan({ ...await Promise.race([work, aborted]), creativity: creativityMode(product.creativity), materialPreset: CURRENT_MATERIAL }, count)
       await this.tx(async () => {
         const current = this.find(id)
         if (current.cancelled) return
-        current.referencePlan = { ...plan, visualRuleVersion: product.visualRuleVersion ?? FELT_RULES_VERSION }
+        current.referencePlan = { ...plan, creativity: creativityMode(current.creativity), visualRuleVersion: product.visualRuleVersion ?? FELT_RULES_VERSION }
         if (current.facts.name.startsWith('参考图设计')) current.facts.name = plan.name
         current.planning!.status = 'completed'; current.planning!.finishedAt = Date.now(); call.status = 'completed'; call.finishedAt = Date.now()
         current.images.forEach((image, index) => { image.planId = plan.plans[index].id; image.version = 1 })
@@ -537,7 +565,7 @@ export class EtsyWorkflow {
         const master = [...product.finalDesigns ?? []].reverse().find(design => design.imageId === parent.id) ?? product.finalDesigns?.find(design => design.id === parent.identityDesignId)
         if (master) image.identityDesignId = master.id
         await this.dispatchImage(product, image, { ...normalized, mode: 'edit', image: source, images: references,
-          prompt: refinementPrompt(instruction) + (master?.spec ? `\nCurrent identity card (keep non-requested details; this edit overrides conflicting old details): ${JSON.stringify(master.spec)}` : '') })
+          prompt: refinementPrompt(instruction, product.creativity === 'preserve') + (master?.spec ? `\nCurrent identity card: ${JSON.stringify(identityCard(master.spec))}` : '') })
       }
       await this.store.save(product)
       if (image.generation.status === 'failed' || image.generation.status === 'unknown') throw new Error(image.generation.error ?? '修改图片未能启动，修改要求已保留')
@@ -839,7 +867,7 @@ export class EtsyWorkflow {
       if (controller.signal.aborted) throw controller.signal.reason
       const product = await this.get(id), image = product.images.find(image => image.id === design!.imageId)!
       const client = this.deps.client?.identity ?? liveEtsyModels.identity!
-      const work = client(config, await this.store.dataUrl(id, image.files[0]), design.notes, controller.signal, { materialPreset: image.visualRules?.materialPreset })
+      const work = client(config, await this.store.dataUrl(id, image.files[0]), design.notes, controller.signal, { materialPreset: CURRENT_MATERIAL })
       const abort = new Promise<never>((_, reject) => controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true }))
       const spec = await Promise.race([work, abort])
       if (!spec.summary || !spec.locks.length) throw new Error('主设计特征返回不完整')
@@ -997,7 +1025,7 @@ export class EtsyWorkflow {
         : await client.vision(config, product.facts, await this.store.dataUrl(id, context!.image!.files[0]),
           reviewSources ? await Promise.all(reviewSources.map(source => this.store.dataUrl(id, source.file))) : await Promise.all(product.referenceFiles.slice(0, 5).map(file => this.store.dataUrl(id, file))),
           viewDesign ? [] : await Promise.all(product.images.filter(image => image.id !== target && image.kind !== 'view').flatMap(image => image.files).slice(0, 3).map(file => this.store.dataUrl(id, file))), controller.signal,
-          { identity: viewDesign?.spec, angle: context!.image?.angle, ...(viewDesign ? {} : { creativity: product.creativity, plan: product.referencePlan?.plans.find(plan => plan.id === context!.image!.planId) }), editInstruction: context!.image!.editInstruction, photography: context!.image!.visualRules?.photography, materialPreset: context!.image!.visualRules?.materialPreset, multiView })
+          { identity: viewDesign?.spec, angle: context!.image?.angle, ...(viewDesign ? {} : { creativity: product.creativity, plan: product.referencePlan?.plans.find(plan => plan.id === context!.image!.planId) }), editInstruction: context!.image!.editInstruction, designPreservation: context!.image!.visualRules?.designPreservation ? { ...context!.image!.visualRules.designPreservation, referenceRoles: (product.designReferences ?? []).map((reference, index) => ({ image: index + 2, role: reference.role, note: reference.note })) } : undefined, photography: context!.image!.visualRules?.photography, materialPreset: context!.image!.visualRules?.materialPreset, multiView })
       const aborted = new Promise<never>((_, reject) => controller.signal.addEventListener('abort', () => reject(controller.signal.reason ?? new Error('请求取消')), { once: true }))
       const result = await Promise.race([work(), aborted])
       await this.tx(async () => {
@@ -1101,10 +1129,10 @@ export class EtsyWorkflow {
         const references = await Promise.all(product.referenceFiles.slice(0, parent ? 4 : 5).map(file => this.store.dataUrl(id, file)))
         const source = parent?.files[0] ? await this.store.dataUrl(id, parent.files[0]) : references[0]
         const request: GenerateRequest = { ...product.request,
-          materialPreset: generation?.materialPreset ?? image.visualRules?.materialPreset ?? product.request.materialPreset ?? CURRENT_MATERIAL,
+          materialPreset: CURRENT_MATERIAL,
           ...(generation ? { model: generation.model, upstream: generation.upstream, channelId: generation.channelId, size: generation.size, quality: generation.quality, detail: generation.detail, photography: generation.photography ?? { ...normalizePhotography(image.visualRules?.photography ?? product.photography, defaultPhotography(product.creationTask, true)), ...(generation.size && generation.size !== 'auto' ? { aspect_ratio: generation.size } : {}) } } : {}),
           ...(source ? { mode: 'edit', image: source, images: parent ? references : references.slice(1) } : {}),
-          prompt: image.editInstruction ? refinementPrompt(image.editInstruction) : plan && product.referencePlan ? referenceGenerationPrompt(product.referencePlan, plan, creativityMode(product.creativity), product.facts.requirements, generation?.materialPreset ?? image.visualRules?.materialPreset ?? product.request.materialPreset ?? CURRENT_MATERIAL) : product.request.prompt }
+          prompt: image.editInstruction ? refinementPrompt(image.editInstruction, product.creativity === 'preserve') : plan && product.referencePlan ? referenceGenerationPrompt(product.referencePlan, plan, creativityMode(product.creativity), product.facts.requirements, CURRENT_MATERIAL) : product.request.prompt }
         product.cancelled = false
         image.generation = { status: 'queued', attempts: image.generation.attempts }
         image.quality = { status: 'queued', attempts: image.quality.attempts }

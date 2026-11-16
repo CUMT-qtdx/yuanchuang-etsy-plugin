@@ -4,7 +4,7 @@ export const STUDIO_MATERIAL_V2 = 'needle_felt_v2_0' as const
 export const STUDIO_MATERIAL_REVISION = '1' as const
 
 // 这是给图像模型的材料描述，不是用于扫描用户或模型文字的词表。
-export const NEEDLE_FELT_CORE_V2 = 'Render the main sculpted form as a solid, hand-shaped needle-felted wool object. Fine short wool fibers are compressed and interlocked through its volume, forming a cohesive non-woven surface. At normal product-photo scale the felt is compact, softly matte and tactile; close inspection reveals irregular embedded fibers and subtle handmade density variations. Keep clear sculpted volumes and a restrained soft fiber edge. Clothing and accessories retain their individually specified materials and construction. Their texture belongs to those parts only. The latest requested design and edit determine geometry, expression and pose; material treatment does not redesign them.'
+export const NEEDLE_FELT_CORE_V2 = 'Render the main sculpted form as a solid, hand-shaped needle-felted wool object. Fine short wool fibers are compressed and interlocked through its volume, forming a cohesive non-woven surface. At normal product-photo scale the felt is compact, softly matte and tactile; close inspection reveals irregular embedded fibers and subtle handmade density variations. Keep clear sculpted volumes and a restrained soft fiber edge. Clothing and accessories retain their individually specified materials and construction. Their texture belongs to those parts only. Material treatment never changes geometry, expression or pose.'
 
 export interface NormalizedMaterialPlan { plan: MaterialPlanV2; notes: string[] }
 const short = (value: unknown, limit: number): string => typeof value === 'string' ? value.trim().slice(0, limit) : ''
@@ -36,7 +36,7 @@ export function normalizeMaterialPlanV2(value: unknown): NormalizedMaterialPlan 
 
 export function materialPlanBlockV2(plan: MaterialPlanV2, editing = false): string {
   if (!plan.parts.length) return 'No additional part material has been confirmed. Preserve the visible construction and material of existing clothing and accessories; use the main felt treatment for the sculpted form.'
-  return [editing ? 'The following are materials from the selected design, not new instructions to recreate removed parts. The latest edit overrides them where requested.' : 'Materials for the existing or explicitly planned parts:',
+  return [editing ? 'The following are materials from the selected design, not instructions to recreate removed parts.' : 'Materials for the existing or explicitly planned parts:',
     ...plan.parts.map(part => `${JSON.stringify(part.part)}: ${part.treatment === 'felt' ? 'sculpted needle-felted wool' : part.material}.`),
   ].join('\n')
 }

@@ -1,3 +1,4 @@
+import { creativityMode } from './design-strategy.ts'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import type { GenerateRequest } from '../protocol.ts'
@@ -74,7 +75,7 @@ export function makeEtsyRoutes(deps: {
     action('rename', async body => workflow.rename(String(body.id), typeof body.name === 'string' ? body.name : '')),
     action('reference', async body => {
       const count = Number(body.count ?? 4), copyTiming = body.copyTiming === 'selected' ? 'selected' : 'all'
-      if (!Number.isInteger(count) || count < 2 || count > 8) throw new Error('探索数量请选择 2 到 8 张')
+      if (!Number.isInteger(count) || count < 1 || count > 8) throw new Error('生成数量请选择 1 到 8 张')
       const minimum = 1 + count * (1 + (body.autoCheck === false ? 0 : 1) + (copyTiming === 'all' ? 1 : 0))
       if (Number(body.maxCalls ?? 24) < minimum) throw new Error(`当前设置至少需要 ${minimum} 次调用额度`)
       const suppliedReferences = Array.isArray(body.references) ? body.references : [{ dataUrl: body.image, role: 'subject', note: '' }]
@@ -102,7 +103,7 @@ export function makeEtsyRoutes(deps: {
       const facts = { ...supplied, type: supplied.type ?? 'unspecified', name: String(supplied.name || `参考图设计 ${Date.now()}`), requirements: typeof body.notes === 'string' ? body.notes.trim() : '' }
       const input = parseProductStart({ ...body, facts, count }, normalized.request)
       Object.assign(input, { references, photography: photo, creationTask: creationTask(body.creationTask), copyTiming, ...(typeof body.previousProjectId === 'string' ? { previousProjectId: body.previousProjectId } : {}) })
-      const creativity = body.creativity === 'gentle' || body.creativity === 'bold' ? body.creativity : 'balanced'
+      const creativity = creativityMode(body.creativity)
       return workflow.start(input, undefined, { creativity })
     }),
     action('confirm-design', async body => workflow.confirmDesign(String(body.id), String(body.imageId), String(body.notes ?? ''))),

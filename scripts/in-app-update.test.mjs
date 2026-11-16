@@ -8,6 +8,8 @@ import { createHash } from 'node:crypto'
 import { AppUpdateService } from '../src/in-app-update.ts'
 import { compareReleaseVersions, releaseInfo, REPOSITORY } from '../src/release-discovery.ts'
 import { checkForUpdate, clearUpdateCache } from '../src/updater.ts'
+import { PLUGIN_VERSION } from '../src/protocol.ts'
+import { nextReleaseVersion } from './release-version.mjs'
 const bytes=Buffer.from('MZ-isolated-installer-fixture'),sha=createHash('sha256').update(bytes).digest('hex')
 function release(version='2.1.2'){
  const name=`Update-Yuanchuang-Etsy-${version}.exe`
@@ -57,7 +59,7 @@ test('带 Etsy 后缀的正式版本与标题、标签、EXE 保持一致，旧�
  assert.equal(releaseInfo(release('2.1.2-etsy'),'2.1.1-etsy').updateAvailable,true)
 })
 test('检测缓存支持手动刷新并正确识别新版',async()=>{
- clearUpdateCache();let calls=0;const fetchFn=async url=>{assert.equal(url,`https://api.github.com/repos/${REPOSITORY}/releases/latest`);calls++;return new Response(JSON.stringify(release()))}
+ clearUpdateCache();let calls=0;const fetchFn=async url=>{assert.equal(url,`https://api.github.com/repos/${REPOSITORY}/releases/latest`);calls++;return new Response(JSON.stringify(release(nextReleaseVersion(PLUGIN_VERSION))))}
  const first=await checkForUpdate(fetchFn,100);assert.equal(first.updateAvailable,true);await checkForUpdate(fetchFn,101);assert.equal(calls,1);await checkForUpdate(fetchFn,102,true);assert.equal(calls,2)
 })
 test('真实流读取、文件大小与哈希通过后才进入ready；重复点击不重复下载',async t=>{

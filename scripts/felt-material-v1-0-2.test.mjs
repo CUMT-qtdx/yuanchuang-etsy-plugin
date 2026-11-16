@@ -91,20 +91,21 @@ test('规划使用同一次分析返回分区分类，不改变四方向和调�
   assert.deepEqual(result.plans[0].feltProfile.materialComponents, components)
 })
 
-test('三个创作入口显式选择候选材质，精修、重试仍带材质规则，旧图不覆盖', async t => {
+test('旧版材质请求一律改用当前 v2 规则，精修、重试也不再发出旧版提示词，旧图不覆盖', async t => {
   const f = await setup(t, { failGeneration: index => index === 1 })
   for (const task of ['redesign', 'felt-conversion', 'flat-to-felt']) {
     const p = await f.workflow.start(input({ count: 1, creationTask: task, maxCalls: 30, generation: { ...input().generation, materialPreset: EXPERIMENTAL_MATERIAL } })); await f.workflow.idle()
     let product = await f.workflow.get(p.id)
-    assert.equal(product.request.materialPreset, EXPERIMENTAL_MATERIAL)
+    assert.equal(product.request.materialPreset, CURRENT_MATERIAL)
     if (product.images[0].generation.status === 'failed') { await f.workflow.retry(p.id, 'generation', product.images[0].id); await f.workflow.idle(); product = await f.workflow.get(p.id) }
     const original = structuredClone(product.images[0])
-    assert.equal(original.visualRules.materialPreset, EXPERIMENTAL_MATERIAL)
-    assert.match(f.queue.get(original.taskId).request.prompt, /needle_felt_v1_0_2/)
+    assert.equal(original.visualRules.materialPreset, CURRENT_MATERIAL)
+    assert.match(f.queue.get(original.taskId).request.prompt, /\[STUDIO_MATERIAL_V2\]/)
+    assert.doesNotMatch(f.queue.get(original.taskId).request.prompt, /needle_felt_v1_0_2|NEEDLE_FELT_RULES/)
     await f.workflow.revise(p.id, '只将主体改为压实羊毛毡，其他不变', product.request, original.id); await f.workflow.idle()
     product = await f.workflow.get(p.id)
     for (const key of ['files', 'visualRules', 'renderSettings', 'generation']) assert.deepEqual(product.images[0][key], original[key])
-    assert.equal(product.images.at(-1).visualRules.materialPreset, EXPERIMENTAL_MATERIAL)
+    assert.equal(product.images.at(-1).visualRules.materialPreset, CURRENT_MATERIAL)
   }
 })
 
@@ -117,7 +118,7 @@ test('新版主图的侧背面继续锁定主图，角度提示词没有混入�
   await f.workflow.generateViews(p.id, product.finalDesigns[0].id, ['back'], 'felt-material-back', product.request); await f.workflow.idle()
   product = await f.workflow.get(p.id)
   const view = product.images.at(-1).visualRules
-  assert.equal(view.multiView.anchor.inheritedModules.needle_felt_v1_0_2, '1.0.2')
+  assert.equal(view.multiView.anchor.inheritedModules.needle_felt_v2_0, '2.0')
   assert.doesNotMatch(view.prompt, /MATERIAL REFERENCE PRIORITY|subject_height_layout_v1_0/)
   assert.match(view.prompt, /Only turn the product/)
 })
@@ -138,20 +139,20 @@ test('真实 HTTP 图生图传输使用新提示词，快照一致且只请求�
   assert.equal(result.visualRules.materialPreset, EXPERIMENTAL_MATERIAL)
 })
 
-test('商品路由保留材质选项并拒绝无效值，即使宿主通用解析器会丢弃自定义字段', async t => {
+test('商品路由接受旧材质值但改用当前规则，并拒绝无效值，即使宿主通用解析器会丢弃自定义字段', async t => {
   const f = await setup(t)
   const routes = makeEtsyRoutes({ workflow: f.workflow, guard: () => true, parse: value => { const { materialPreset, ...rest } = value; return rest }, normalize: request => ({ ok: true, request }) })
   const server = createServer((req, res) => routes.find(route => route.path === req.url).handler(req, res))
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => new Promise(resolve => server.close(resolve)))
   const post = async body => (await fetch(`http://127.0.0.1:${server.address().port}/api/dsh-imagegen/etsy/start`, { method: 'POST', body: JSON.stringify(body) })).json()
   const a = input({ count: 1 }); a.generation.materialPreset = DEFAULT_MATERIAL
-  const good = await post(a); assert.equal(good.ok, true); assert.equal(good.value.request.materialPreset, DEFAULT_MATERIAL)
+  const good = await post(a); assert.equal(good.ok, true); assert.equal(good.value.request.materialPreset, CURRENT_MATERIAL)
   const bad = input({ count: 1 }); bad.generation.materialPreset = 'invalid'
   const denied = await post(bad); assert.equal(denied.ok, false)
   await f.workflow.idle(); assert.equal(f.counts.generation, 1)
 })
 
-test('新版默认使用 Studio 2 材质，显式旧版仍保持兼容', async t => {
+test('新版默认使用 Studio 2 材质，显式旧版请求也改用 Studio 2', async t => {
   assert.equal(CURRENT_MATERIAL, 'needle_felt_v2_0')
   const f = await setup(t)
   for (const task of ['redesign', 'felt-conversion', 'flat-to-felt']) {
@@ -163,25 +164,25 @@ test('新版默认使用 Studio 2 材质，显式旧版仍保持兼容', async t
   }
   const legacy = await f.workflow.start(input({ count: 1, generation: { ...input().generation, materialPreset: DEFAULT_MATERIAL } })); await f.workflow.idle()
   const image = (await f.workflow.get(legacy.id)).images[0]
-  assert.equal(image.visualRules.materialPreset, DEFAULT_MATERIAL)
-  assert.equal(image.visualRules.modules.needle_felt_v1_0, '1.0')
-  assert.doesNotMatch(f.queue.get(image.taskId).request.prompt, /needle_felt_v1_0_2/)
+  assert.equal(image.visualRules.materialPreset, CURRENT_MATERIAL)
+  assert.equal(image.visualRules.modules.needle_felt_v1_0, undefined)
+  assert.doesNotMatch(f.queue.get(image.taskId).request.prompt, /needle_felt_v1_0_2|NEEDLE_FELT_RULES/)
 })
 
-test('失败重试切换材质真正传入队列，之后不指定版本仍继承该图片候选版', async t => {
+test('失败重试即使指定旧材质版本，也改用当前 v2 规则传入队列', async t => {
   const f = await setup(t, { failGeneration: index => index <= 2 })
   const p = await f.workflow.start(input({ count: 1, maxCalls: 20, generation: { ...input().generation, materialPreset: DEFAULT_MATERIAL } })); await f.workflow.idle()
   let product = await f.workflow.get(p.id), image = product.images[0]
-  assert.equal(image.visualRules.materialPreset, DEFAULT_MATERIAL)
+  assert.equal(image.visualRules.materialPreset, CURRENT_MATERIAL)
   await f.workflow.retry(p.id, 'generation', image.id, false, { ...product.request, materialPreset: EXPERIMENTAL_MATERIAL }); await f.workflow.idle()
   product = await f.workflow.get(p.id); image = product.images[0]
-  assert.equal(image.visualRules.materialPreset, EXPERIMENTAL_MATERIAL)
-  assert.equal(f.queue.get(image.taskId).request.feltContext.materialPreset, EXPERIMENTAL_MATERIAL)
+  assert.equal(image.visualRules.materialPreset, CURRENT_MATERIAL)
+  assert.equal(f.queue.get(image.taskId).request.feltContext.materialPreset, CURRENT_MATERIAL)
   await f.workflow.retry(p.id, 'generation', image.id); await f.workflow.idle()
   image = (await f.workflow.get(p.id)).images[0]
   assert.equal(image.generation.status, 'completed')
-  assert.equal(image.visualRules.materialPreset, EXPERIMENTAL_MATERIAL)
-  assert.equal(product.request.materialPreset, DEFAULT_MATERIAL, '项目默认不因单张实验重试被迁移')
+  assert.equal(image.visualRules.materialPreset, CURRENT_MATERIAL)
+  assert.doesNotMatch(f.queue.get(image.taskId).request.prompt, /needle_felt_v1_0_2|NEEDLE_FELT_RULES/)
 })
 
 test('五类材料分开且每类仅注入一次；无对应部件不注入松毛、毡片和织物规则', () => {

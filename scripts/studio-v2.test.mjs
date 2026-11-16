@@ -49,7 +49,8 @@ test('方案只读一次分析，结构化材料唯一生效，不夹入模型�
     analyses++; assert.match(options.system, /STUDIO_V2_MATERIAL_PLAN/)
     assert.match(options.system, /眼睛、鼻头、珠类小件默认 retain，不归羊毛/)
     assert.match(options.system, /materialPlan/); assert.doesNotMatch(options.system, /建议90到180词/)
-    return JSON.stringify({ name: '蓝裙兔', summary: '白兔', keep: ['白兔五官'], plans: Array.from({ length: 4 }, (_, i) => ({ name: `方案${i}`, direction: `独立方向${i}`, changes: ['保持识别点'],
+    assert.match(options.system, /changesEn/); assert.match(options.system, /恰好4个方案/)
+    return JSON.stringify({ name: '蓝裙兔', summary: '白兔', keep: ['白兔五官'], keepEn: ['white rabbit facial features'], plans: Array.from({ length: 4 }, (_, i) => ({ name: `方案${i}`, direction: `独立方向${i}`, changes: ['保持识别点'], changesEn: ['keep the identity markers visible'],
       prompt: `This old verbose knitted doll prompt must not be used for proposal ${i}.`,
       designBrief: `A white rabbit wearing a blue pinafore with two pockets, a small bow and carrot charm, design ${i}.`,
       materialPlan: { parts: [{ part: 'blue dress', material: 'lightweight woven cotton with stitched pocket edges', treatment: 'retain' }, { part: 'rabbit body', material: 'wool', treatment: 'felt' }] } })) })
@@ -61,9 +62,12 @@ test('方案只读一次分析，结构化材料唯一生效，不夹入模型�
   for (const image of product.images) {
     assert.equal(image.visualRules.materialPreset, STUDIO_MATERIAL_V2)
     assert.match(image.visualRules.prompt, /lightweight woven cotton with stitched pocket edges/)
-    assert.match(image.visualRules.prompt, /DESIGN:[\s\S]*PLANNED CHANGES[^:]*: 保持识别点/)
+    assert.match(image.visualRules.prompt, /DESIGN:[\s\S]*PLANNED CHANGES[^:]*: keep the identity markers visible/)
+    assert.match(image.visualRules.prompt, /Identity details: white rabbit facial features/)
+    assert.doesNotMatch(image.visualRules.prompt, /保持识别点|白兔五官/, '生图提示词只使用英文版本的改动与识别点')
     assert.equal(image.visualRules.prompt.split('lightweight woven cotton with stitched pocket edges').length - 1, 1, '结构化材料在最终提示词中只组装一次')
-    assert.match(image.visualRules.prompt, /计划变化优先于参考图保留措辞/)
+    assert.equal((image.visualRules.prompt.match(/PRIORITY \(highest first\)/g) ?? []).length, 1, '优先级只在一处说明')
+    assert.doesNotMatch(image.visualRules.prompt, /计划变化优先|planned changes win|Except for the planned changes|overrides earlier design/)
     assert.equal(image.visualRules.profile.materialPlan.parts.find(part => part.part === 'blue dress').treatment, 'retain', '服装保留计划材料，不套用主体毡化处理')
     assert.doesNotMatch(image.visualRules.prompt, /old verbose knitted doll|Existing felt clothing|REALISTIC NEEDLE-FELTED WOOL PRODUCT TEMPLATE/)
     assert.equal(image.visualRules.profile.materialPlan.parts.length, 2)

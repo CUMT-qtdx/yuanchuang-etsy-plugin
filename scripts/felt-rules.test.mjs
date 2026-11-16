@@ -188,7 +188,7 @@ test('新项目的初图、精修、同图不同模型和多角度都带规则�
   await workflow.generateViews(p.id, design.id, ['back'], 'felt-back-view', { ...product.request, model: 'grok-imagine-image', photography: photo }); await workflow.idle()
   product = await workflow.get(p.id); const view = product.images.find(image => image.kind === 'view')
   assert.equal(view.visualRules.stage, 'multi-view'); assert.equal(view.visualRules.adapter, 'grok')
-  assert.match(view.visualRules.prompt, /Stripes must remain stripes/)
+  assert.match(view.visualRules.prompt, /Each surface pattern keeps its type and shape/)
   assert.ok(view.visualRules.profile.components.includes('wings'))
   assert.deepEqual(view.visualRules.ruleIds, ['multi_view_consistency_v1_0', 'hero_surface_continuity_v1_0'])
   assert.equal(counts.identity, 1); assert.equal(counts.copy, 1)
@@ -232,18 +232,21 @@ test('订阅运行时按实际渠道适配，真实下发与存档一致，普�
   assert.equal(wire.at(-1).prompt, 'advanced canvas: retain this exact prompt')
 })
 
-test('重试与模型适配只添加一份规则，新增和移除部件影响对应局部规则', async t => {
+test('重试与模型适配只添加一份规则，旧版材质项目的精修也只带一份当前规则', async t => {
   const { workflow, queue } = await setup(t, { failGeneration: index => index === 1 })
   const p = await workflow.start(input({ count: 1, maxCalls: 30, generation: { ...input().generation, model: 'gpt-image-2', materialPreset: DEFAULT_MATERIAL } })); await workflow.idle()
   let product = await workflow.get(p.id)
   await workflow.retry(p.id, 'generation', product.images[0].id, false, { ...product.request, model: 'gemini-3-pro-image' }); await workflow.idle()
   product = await workflow.get(p.id)
   const retried = queue.get(product.images[0].taskId).request
-  assert.equal((retried.prompt.match(/\[NEEDLE_FELT_RULES:/g) ?? []).length, 1)
+  assert.equal((retried.prompt.match(/\[STUDIO_MATERIAL_V2\]/g) ?? []).length, 1)
+  assert.doesNotMatch(retried.prompt, /NEEDLE_FELT_RULES/)
   assert.equal(product.images[0].visualRules.adapter, 'gemini')
   await workflow.revise(p.id, '添加分层翅膀，其他不变', product.request, product.images[0].id); await workflow.idle()
   product = await workflow.get(p.id); const winged = product.images.at(-1)
-  assert.ok(winged.visualRules.ruleIds.includes('PART-wings'))
+  const wingPrompt = queue.get(winged.taskId).request.prompt
+  assert.match(wingPrompt, /LATEST EDIT: 添加分层翅膀/); assert.equal((wingPrompt.match(/\[STUDIO_MATERIAL_V2\]/g) ?? []).length, 1)
   await workflow.revise(p.id, '移除翅膀，其他不变', product.request, winged.id); await workflow.idle()
-  assert.ok(!(await workflow.get(p.id)).images.at(-1).visualRules.ruleIds.includes('PART-wings'))
+  const removed = (await workflow.get(p.id)).images.at(-1)
+  assert.match(queue.get(removed.taskId).request.prompt, /LATEST EDIT: 移除翅膀/)
 })

@@ -24,6 +24,7 @@ export class AppUpdateService {
   private state: UpdateProgress = initial()
   private downloaded?: Downloaded
   private downloading = false
+  private transferWork?: Promise<void>
   private handoff = false
   private hydrated = false
   readonly dataDirectory: string
@@ -50,6 +51,8 @@ export class AppUpdateService {
         if (saved && ['failed', 'completed', 'installing', 'restarting'].includes(saved.phase)) this.state = saved
       } catch { /* 尚未运行过更新，不产生错误提示。 */ }
     }
+    // 最终下载状态写盘完成后再对外返回，避免交接状态被尚未完成的写入覆盖。
+    if (this.downloading && ['ready', 'failed'].includes(this.state.phase)) await this.transferWork
     if (['installing', 'restarting'].includes(this.state.phase)) {
       try { this.state = JSON.parse((await readFile(path.join(this.root, 'state.json'), 'utf8')).replace(/^\uFEFF/, '')) as UpdateProgress } catch {}
     }
@@ -58,6 +61,8 @@ export class AppUpdateService {
   private check(force = false): Promise<UpdateInfo> { return this.options.check?.(force) ?? checkForUpdate(fetch, Date.now(), force) }
   async download(version: string): Promise<UpdateProgress> {
     await this.status()
+    // 失败状态可能先于磁盘持久化完成；先等旧任务收尾，防止立即重试被旧标记挡住。
+    if (this.downloading && this.state.phase === 'failed') await this.transferWork
     if (this.downloading) {
       if (this.state.version !== version) throw new Error('另一个版本正在下载，请等待完成')
       return { ...this.state }
@@ -68,7 +73,7 @@ export class AppUpdateService {
     if (this.downloaded?.version === version && this.state.phase === 'ready') return { ...this.state }
     this.downloading = true
     await this.update({ phase: 'downloading', version, receivedBytes: 0, totalBytes: info.installer.size, message: '正在下载新版安装器' })
-    void this.transfer(info).catch(async error => {
+    this.transferWork = this.transfer(info).catch(async error => {
       this.downloaded = undefined
       await this.update({ phase: 'failed', message: error instanceof Error ? error.message : '下载失败，请重新尝试' })
     }).finally(() => { this.downloading = false })

@@ -1,10 +1,27 @@
 import { aspectRatios, photographyPresets, type PhotographySettings } from '../etsy/felt/photography-options.ts'
 import { occupancyPresets } from '../etsy/felt/composition-v1.ts'
+import { compositionTarget } from '../etsy/felt/photography-contract.ts'
 import css from './reference-studio.module.css'
 
 export function PhotographyControls(props: { value: PhotographySettings; onChange: (value: PhotographySettings) => void }): React.JSX.Element {
   const { value, onChange } = props
-  const set = (patch: Partial<PhotographySettings>): void => onChange({ ...value, ...patch })
+  const set = (patch: Partial<PhotographySettings>): void => {
+    const controls = new Set(value.explicit_controls ?? [])
+    if ('photography_preset' in patch || 'custom_background' in patch) controls.add('background')
+    if ('framing_policy' in patch || 'subject_height_ratio' in patch) controls.add('framing')
+    if ('aspect_ratio' in patch) controls.add('aspect')
+    onChange({ ...value, ...patch, explicit_controls: [...controls] })
+  }
+  const target = compositionTarget(value)
+  const aspect = /^(\d+)[:x](\d+)$/.exec(value.aspect_ratio)
+  const sceneHelp = {
+    'preserve-original': '保留参考图环境；商品占比仍按构图设置处理。',
+    'natural-tabletop': '干净木纹桌面与素墙，突出桌面商品摄影。',
+    'home-lifestyle': '可辨认的沙发、书架或落地灯，体现真实房间纵深。',
+    'seasonal-lifestyle': '按商品主题布置背景，环境装饰与商品保持分离。',
+    'white-studio': '纯白无缝背景与白色承托面，移除原图木桌和房间。',
+    custom: '把描述用于拍摄环境，不改变商品设计。',
+  }
   return <section className={css.photographyControls} data-photography-controls="">
     <div className={css.photoTitle}>摄影与构图 <small>{value.preserve_background || value.photography_preset === 'preserve-original' ? '原背景' : photographyPresets.find(preset => preset.value === value.photography_preset)?.label} · {value.framing_policy === 'preserve_reference' ? '原构图' : `主体约${Math.round(value.subject_height_ratio * 100)}%`}</small></div>
     <div className={css.photographyFields}>
@@ -12,7 +29,8 @@ export function PhotographyControls(props: { value: PhotographySettings; onChang
       <label>图片画幅<select aria-label="图片画幅" value={value.aspect_ratio} onChange={event => set({ aspect_ratio: event.target.value })}>{aspectRatios.map(ratio => <option key={ratio} value={ratio}>{ratio === 'auto' ? '沿用参考 / 自动' : ratio}</option>)}</select></label>
       <label>构图方式<select aria-label="构图方式" value={value.framing_policy} onChange={event => set({ framing_policy: event.target.value as PhotographySettings['framing_policy'] })}><option value="preserve_reference">保留原构图</option><option value="override_reference">使用新的主体占比</option></select></label>
     </div>
+    <small data-photography-scene-help>{sceneHelp[value.photography_preset]}</small>
     {value.photography_preset === 'custom' ? <label>自定义背景<textarea aria-label="自定义摄影背景" maxLength={1000} value={value.custom_background ?? ''} onChange={event => set({ custom_background: event.target.value })} placeholder="例如：浅灰水泥台面，后方米白墙，柔和左侧窗光；不加其他道具" /><small>描述环境即可，主体造型仍由参考图和你的要求决定。</small></label> : null}
-    {value.framing_policy === 'override_reference' ? <div className={css.occupancy}><div className={css.actions}>{occupancyPresets.map(preset => <button type="button" key={preset.ratio} aria-pressed={value.subject_height_ratio === preset.ratio} onClick={() => set({ subject_height_ratio: preset.ratio })}>{preset.label}</button>)}</div><label>主体高度约 <strong>{Math.round(value.subject_height_ratio * 100)}%</strong><input aria-label="主体高度占比" type="range" min={35} max={90} step={5} value={Math.round(value.subject_height_ratio * 100)} onChange={event => set({ subject_height_ratio: Number(event.target.value) / 100 })} /></label><small>调整整体在画面中的大小，不改变头身比例；横向主体优先完整入镜。</small></div> : null}
+    {value.framing_policy === 'override_reference' ? <div className={css.occupancy}><div className={css.actions}>{occupancyPresets.map(preset => <button type="button" key={preset.ratio} aria-pressed={value.subject_height_ratio === preset.ratio} onClick={() => set({ subject_height_ratio: preset.ratio })}>{preset.label}</button>)}</div><label>整组商品高度约 <strong>{Math.round(value.subject_height_ratio * 100)}%</strong><input aria-label="主体高度占比" type="range" min={35} max={90} step={5} value={Math.round(value.subject_height_ratio * 100)} onChange={event => set({ subject_height_ratio: Number(event.target.value) / 100 })} /></label>{target ? <div className={css.framingPreviewRow}><div className={css.framingPreview} data-composition-preview aria-label={`构图示意：整组商品从画面${Math.round(target.top*100)}%到${Math.round(target.bottom*100)}%`} style={{ aspectRatio: aspect ? `${aspect[1]}/${aspect[2]}` : '1' }}><span style={{ top: `${target.top*100}%`, height: `${target.heightRatio*100}%` }} /></div><small>蓝色范围表示整组商品高度，包含所有商品和配件，不含阴影。50% 是占画面一半高度，不是把原图缩小一半。</small></div> : null}<small>生成时使用该构图目标；实际占比仍需核对。商品内部比例保持不变。</small></div> : null}
   </section>
 }

@@ -86,7 +86,7 @@ test('HTTP 重命名动作可用，列表与导出快照包含显示名', async 
   assert.match(bad.message, /请输入创作名称/)
 })
 
-test('参考图创作支持 2 到 8 张，1 张仍被拒绝', async t => {
+test('参考图创作支持 1 到 8 张，越界数量被拒绝', async t => {
   const f = await setup(t)
   const routes = makeEtsyRoutes({ workflow: f.workflow, guard: () => true, parse: value => value, normalize: request => ({ ok: true, request }) })
   const server = createServer(async (req, res) => {
@@ -102,7 +102,9 @@ test('参考图创作支持 2 到 8 张，1 张仍被拒绝', async t => {
     facts: { name: '测试', type: 'unspecified' }, generation: { model: 'mock-image', channelId: 'mock', mode: 'edit', prompt: 'test', size: 'auto', quality: 'auto', n: 1, detail: '' },
   }) })).json()
   const one = await post(1)
-  assert.equal(one.ok, false); assert.match(one.message, /2 到 8 张/)
+  assert.equal(one.ok, true, one.message); assert.equal(one.value.images.length, 1)
+  const zero = await post(0)
+  assert.equal(zero.ok, false); assert.match(zero.message, /1 到 8 张/)
   const two = await post(2)
   assert.equal(two.ok, true, two.message)
   assert.equal(two.value.images.length, 2)

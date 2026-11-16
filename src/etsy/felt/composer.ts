@@ -1,3 +1,4 @@
+import { photographyTheme } from './photography-contract.ts'
 import { FELT_LIBRARY_V1, FELT_PART_RULES, MIXED_MATERIAL_RULES } from './library-v1.ts'
 import { PHOTOGRAPHY_VERSION, defaultPhotography, effectivePhotography, normalizePhotography, photographyBlock } from './photography-options.ts'
 import { COMPOSITION_VERSION } from './composition-v1.ts'
@@ -97,20 +98,22 @@ export function feltAnalysisInstructions(stage: 'planning' | 'identity' | 'quali
   ].filter(Boolean).join('\n')
 }
 
-export function makeFeltContext(input: { basePrompt: string; stage: FeltStage; task?: FeltRequestContext['task']; profile?: unknown; description?: string; userRequirements?: string; latestInstruction?: string; multiReference?: boolean; version?: string; materialPreset?: MaterialPreset; photography?: PhotographySettings; multiView?: MultiViewContext }): FeltRequestContext {
+export function makeFeltContext(input: { basePrompt: string; stage: FeltStage; task?: FeltRequestContext['task']; profile?: unknown; description?: string; userRequirements?: string; latestInstruction?: string; multiReference?: boolean; version?: string; materialPreset?: MaterialPreset; photography?: PhotographySettings; multiView?: MultiViewContext; designPreservation?: FeltRequestContext['designPreservation']; compositionGuide?: FeltRequestContext['compositionGuide'] }): FeltRequestContext {
   const version = input.version ?? FELT_RULES_VERSION; feltLibrary(version)
   const task = input.task ?? 'redesign'
+  const targetPhotography = normalizePhotography(input.photography, defaultPhotography(task, input.stage === 'refinement' || input.stage === 'multi-view'))
+  if (input.materialPreset === STUDIO_MATERIAL_V2 && targetPhotography.photography_preset === 'seasonal-lifestyle' && !targetPhotography.scene_theme) targetPhotography.scene_theme = photographyTheme(input.description ?? '', (input.profile as FeltProfile | undefined)?.scene)
   if (input.materialPreset === STUDIO_MATERIAL_V2) return { version, stage: input.stage, task, materialPreset: STUDIO_MATERIAL_V2,
     basePrompt: stripOwnedBlocksV2(input.basePrompt), userRequirements: input.userRequirements ?? '', latestInstruction: input.latestInstruction,
     multiReference: !!input.multiReference, profile: normalizeProfileV2(input.profile),
-    photography: normalizePhotography(input.photography, defaultPhotography(task, input.stage === 'refinement' || input.stage === 'multi-view')),
-    ...(input.multiView ? { multiView: structuredClone(input.multiView) } : {}) }
+    photography: targetPhotography, ...(input.compositionGuide ? { compositionGuide: structuredClone(input.compositionGuide) } : {}),
+    ...(input.multiView ? { multiView: structuredClone(input.multiView) } : {}), ...(input.designPreservation ? { designPreservation: structuredClone(input.designPreservation) } : {}) }
   const profile = normalizeFeltProfile(input.profile, input.description ?? '')
   const materialPreset = normalizeMaterialPreset(input.materialPreset)
   const basePrompt = input.stage !== 'multi-view' ? stripMaterialRuleBlocks(input.basePrompt) : input.basePrompt.replace(/\[NEEDLE_FELT_RULES:[^\]]*\][\s\S]*?\[\/NEEDLE_FELT_RULES\]/g, '').trim()
   if (materialPreset === EXPERIMENTAL_MATERIAL && input.stage !== 'multi-view') profile.materialComponents = inferMaterialComponents(profile, [input.description, basePrompt].filter(Boolean).join('\n'))
   return { version, stage: input.stage, task, basePrompt, userRequirements: input.userRequirements ?? '', latestInstruction: input.latestInstruction, multiReference: !!input.multiReference,
-    profile, ...(input.materialPreset ? { materialPreset } : {}), photography: normalizePhotography(input.photography, defaultPhotography(task, input.stage === 'refinement' || input.stage === 'multi-view')), ...(input.multiView ? { multiView: structuredClone(input.multiView) } : {}) }
+    profile, ...(input.materialPreset ? { materialPreset } : {}), photography: normalizePhotography(input.photography, defaultPhotography(task, input.stage === 'refinement' || input.stage === 'multi-view')), ...(input.multiView ? { multiView: structuredClone(input.multiView) } : {}), ...(input.designPreservation ? { designPreservation: structuredClone(input.designPreservation) } : {}) }
 }
 
 export function composeFeltPrompt(context: FeltRequestContext, model: string, subscription?: string): FeltApplication {
