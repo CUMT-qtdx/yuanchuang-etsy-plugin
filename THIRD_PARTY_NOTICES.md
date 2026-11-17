@@ -1,5 +1,13 @@
 # Third-Party Notices
 
+## muqadasejaz/AIMetaScrubber
+
+- 来源：https://github.com/muqadasejaz/AIMetaScrubber
+- 固定提交：6d8c2660cacd6dfeb1d98c5b45327e3ba842ef0a
+- 许可证：MIT；Copyright (c) 2026 Muqadas Ejaz
+- 复用 `index.html` 中格式识别、JPEG／PNG／WebP 分段处理、EXIF 读取、CRC 和块拼接逻辑。
+- 修改后的代码位于 `src/metadata/`，该目录 LICENSE 保留完整许可证。界面与网页未集成。
+
 The bundled prompt snapshots under `src/templates/` include material from the
 following projects. Image assets are not bundled; they are fetched on demand
 from the pinned upstream revisions recorded in the snapshot metadata.

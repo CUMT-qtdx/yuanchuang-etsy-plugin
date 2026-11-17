@@ -72,12 +72,20 @@ export class EtsyStore {
     const image = await this.readImage(id, file)
     return `data:${image.mime};base64,${image.data.toString('base64')}`
   }
-  async export(id: string, product: EtsyProduct): Promise<{ product: EtsyProduct; files: Array<{ name: string; mime: string; base64: string }> }> {
+  async export(id: string, product: EtsyProduct): Promise<{ product: EtsyProduct; files: Array<{ name: string; mime: string; base64: string }>; failures: Array<{ name: string; message: string }> }> {
     const names = [...new Set([...product.referenceFiles, ...product.images.flatMap(image => image.files), ...(product.finalDesigns ?? []).flatMap(design => [...design.materialReference?.samples.map(sample => sample.file) ?? [], ...design.directionGuides?.map(guide => guide.file) ?? []])])]
-    const files = await Promise.all(names.map(async name => {
-      const image = await this.readImage(id, name)
-      return { name, mime: image.mime, base64: image.data.toString('base64') }
-    }))
-    return { product, files }
+    const files: Array<{ name: string; mime: string; base64: string }> = [], failures: Array<{ name: string; message: string }> = []
+    for (const name of names) {
+      try {
+        const image = await this.readImage(id, name)
+        files.push({ name, mime: image.mime, base64: image.data.toString('base64') })
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code
+        // 导出清单使用可理解的错误原因，避免把本机文件路径写入资料包。
+        const message = code === 'ENOENT' ? '原图文件不存在' : code === 'EACCES' || code === 'EPERM' ? '没有读取原图的权限' : error instanceof Error && ['图片已损坏', '无效图片文件名'].includes(error.message) ? error.message : '原图读取失败'
+        failures.push({ name, message })
+      }
+    }
+    return { product, files, failures }
   }
 }

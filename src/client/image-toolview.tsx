@@ -1,3 +1,4 @@
+import { ImageDownloadLink } from './ImageDownloadLink.tsx'
 /** Inline renderer for image-generation tool-result attachments. */
 
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
@@ -198,7 +199,7 @@ async function copyImageSource(src: string): Promise<void> {
  * The conversation window cannot open a new window for a `blob:` URL: the
  * desktop shell denies every `window.open` / `target="_blank"` that is not
  * http(s), so an anchor around the thumbnail is a silent no-op there. Rendering
- * the viewer in place (portal to body, download through `<a download>`) keeps
+ * the viewer in place (portal to body, download through the shared export handler) keeps
  * preview and save working on both the desktop app and `dsh web`.
  */
 function ImageLightbox(props: {
@@ -284,7 +285,7 @@ function ImageLightbox(props: {
           {notice !== null && <span className={css.lightboxNotice} role="status">{tt(notice === 'copied' ? 'image.copied' : 'image.copyFailed')}</span>}
           <span className={css.lightboxActions}>
             <button type="button" className={css.lightboxAction} disabled={copying} onClick={() => { void copy() }}>{tt('image.copy')}</button>
-            <a className={css.lightboxDownload} href={image.src} download={imageFileName(image.ref, index)} data-image-download="">{tt('download')}</a>
+            <ImageDownloadLink className={css.lightboxDownload} href={image.src} download={imageFileName(image.ref, index)} data-image-download="">{tt('download')}</ImageDownloadLink>
             <button type="button" className={css.lightboxAction} onClick={onClose}>{tt('preview.close')}</button>
           </span>
         </footer>

@@ -1,3 +1,4 @@
+import { downloadCanvasFile } from './metadata-download.ts'
 /**
  * Canvas file-node preview surfaces.
  *
@@ -141,13 +142,7 @@ function DownloadButton({ asset, title, label }: { asset: CanvasAssetRef; title:
     aria-label={label}
     onClick={event => {
       event.stopPropagation()
-      const anchor = document.createElement('a')
-      anchor.href = asset.url
-      anchor.download = asset.name ?? title
-      anchor.rel = 'noopener'
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
+      void downloadCanvasFile(asset.url, asset.name ?? title, asset.mime).catch(() => {})
     }}
   ><Download size={13} strokeWidth={1.6} aria-hidden="true" /></button>
 }

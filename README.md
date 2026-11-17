@@ -1,10 +1,12 @@
 # 元创 Etsy Studio 2
 
-当前版本 **2.1.2-etsy**。它是 DeepSeek Harness 的生图插件。打开原来的 DSH 桌面程序，点击「生图」进入。员工实际怎么走，以及规划、生图、文案的原文，见 [docs/员工流程.md](docs/员工流程.md)。
+当前版本 **2.1.3-etsy**。它是 DeepSeek Harness 的生图插件。打开原来的 DSH 桌面程序，点击「生图」进入。员工实际怎么走，以及规划、生图、文案的原文，见 [docs/员工流程.md](docs/员工流程.md)。
 
 ![元创 Etsy Studio 2](docs/images/studio.png)
 
 ## 安装和更新
+
+2.1.3 新增导出时自动处理图片元数据，覆盖单张、批量和商品 ZIP，默认保留作者、版权及 C2PA 来源凭证。具体状态与保留规则见 [图片导出元数据说明](docs/图片导出元数据.md)。
 
 每个版本的双击安装文件在 [Releases](https://github.com/CUMT-qtdx/yuanchuang-etsy-plugin/releases)。
 

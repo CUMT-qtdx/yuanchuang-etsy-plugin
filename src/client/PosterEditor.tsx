@@ -1,3 +1,4 @@
+import { downloadImageBlob } from './metadata-download.ts'
 /** Local, reversible poster overlays. Never rewrites the source image or calls a model. */
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
@@ -138,11 +139,7 @@ export function PosterEditor({ api, asset, recipe, onSave, onClose }: Props): Re
         if (mounted.current) onClose()
       } else {
         const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value === null ? reject(new Error(tt('poster.exportFailed'))) : resolve(value), 'image/png'))
-        const url = URL.createObjectURL(blob)
-        const anchor = globalThis.document.createElement('a')
-        anchor.href = url; anchor.download = `poster-${Date.now()}.png`
-        globalThis.document.body.appendChild(anchor); anchor.click(); anchor.remove()
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+        await downloadImageBlob(blob, `poster-${Date.now()}.png`)
       }
     } catch (caught) { if (mounted.current) setError(caught instanceof Error ? caught.message : String(caught)) }
     finally { if (mounted.current) setBusy(false) }

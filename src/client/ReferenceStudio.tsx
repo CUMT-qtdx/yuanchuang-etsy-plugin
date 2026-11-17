@@ -1,3 +1,5 @@
+import { downloadImageZip } from './metadata-download.ts'
+import { ImageDownloadLink } from './ImageDownloadLink.tsx'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PLUGIN_VERSION, type ChannelConfig, type GenerateRequest } from '../protocol.ts'
@@ -214,9 +216,8 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; channel
   const exportCurrent = async (): Promise<void> => {
     const current = productRef.current, imageId = chosen?.id
     if (!current || !await saveCopy()) return
-    const link = document.createElement('a')
-    link.href = `${ETSY_API}/export?id=${encodeURIComponent(current.id)}${imageId ? `&imageId=${encodeURIComponent(imageId)}` : ''}`
-    link.download = `etsy-${current.id}.zip`; link.click()
+    try { await downloadImageZip(`${ETSY_API}/export?id=${encodeURIComponent(current.id)}${imageId ? `&imageId=${encodeURIComponent(imageId)}` : ''}`, `etsy-${current.id}.zip`) }
+    catch (error) { setError(error instanceof Error ? error.message : '导出失败') }
   }
   const retryImage = async (image: ProductImage): Promise<void> => {
     const confirmUnknown = image.generation.status === 'unknown'
@@ -283,7 +284,7 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; channel
               <div className={css.designImage}>{image?.files[0] && product ? <button type="button" className={css.previewTrigger} aria-label={`查看大图：${plan.name}`} onClick={() => openImage(image.id)}><img src={asset(product, image.files[0])} alt={`设计方案 ${index + 1}`} /><span className={css.previewHint}>点击查看大图</span></button> : <div className={css.placeholder}><span>0{index + 1}</span><small>{product ? product.planning?.status === 'running' ? '正在规划' : stageText[image?.generation.status ?? 'queued'] : '等待你的参考图'}</small></div>}{pending ? <span className={css.working}>正在生成新版本…</span> : null}{image?.report ? <span className={css.quality} data-quality={image.report.status}>{oldQuality ? '旧资料检查' : image.report.status === 'PASS' ? '可用建议' : image.report.status === 'REVISE' ? '建议修改' : image.report.status === 'REJECT' ? '需重点复核' : '待确认'}</span> : null}</div>
               <div className={css.designBody}><h4>{plan.name}</h4><span className={css.versionLabel}>{image?.parentImageId ? `修改版 · 版本 ${image.version ?? 2}` : '初始方案'}</span>{image?.files.length ? <span className={css.copyState} data-image-copy-state={copyState?.status}>{copyState?.status === 'completed' ? product?.imageCopies?.[image!.id]?.copy.fieldIssues?.length ? '部分文案待补齐' : '✓ 图文已就绪' : copyState?.status === 'failed' ? '文案未完成' : copyState?.status === 'unknown' ? '文案需核对' : copyState?.status === 'cancelled' ? '文案已停止' : copyState?.status === 'skipped' ? '可按需准备文案' : '图片已保存 · 文案准备中'}</span> : null}{image?.generation.error ? <p className={css.error}>{image.generation.error}</p> : null}<button type="button" className={selected ? css.selectedButton : ''} disabled={!image?.files.length || actionBusy || editor.dirty} onClick={() => { if (image) void action('select', { imageId: image.id }) }}>{selected ? '✓ 当前图片' : image?.parentImageId ? `选择修改版 ${index + 1} · 版本 ${image.version ?? 2}` : `选择方案 ${index + 1}`}</button>
               {image && ['failed', 'cancelled', 'unknown'].includes(image.generation.status) ? <button type="button" disabled={actionBusy} onClick={() => { void retryImage(image) }}>{image.generation.status === 'unknown' ? '确认后重新生成' : '重试这张图'}</button> : null}
-              {image?.files[0] && product ? <div className={css.imageActions}><button type="button" onClick={() => openImage(image.id)}>查看大图</button><a href={asset(product, image.files[0])} download={previewEntries.find(entry => entry.id === `${image.id}:${image.files[0]}`)?.downloadName}>下载原图</a></div> : null}
+              {image?.files[0] && product ? <div className={css.imageActions}><button type="button" onClick={() => openImage(image.id)}>查看大图</button><ImageDownloadLink href={asset(product, image.files[0])} download={previewEntries.find(entry => entry.id === `${image.id}:${image.files[0]}`)?.downloadName}>下载原图</ImageDownloadLink></div> : null}
               {plan.direction || image?.editInstruction ? <details className={css.report}><summary>{image?.parentImageId ? '查看修改说明' : '查看设计说明'}</summary><p>{image?.editInstruction || plan.direction}</p>{!image?.parentImageId && plan.changes.length ? <small>{plan.changes.join(' · ')}</small> : null}</details> : null}
               {image?.report ? <details className={css.report}><summary>检查建议</summary>{oldQuality ? <small>资料已更新，以下检查对应旧资料。</small> : null}<p>{image.report.summary}</p><PreservationReport report={image.report} />{image.report.issues.map((issue, i) => <div key={i}><strong>{issue.problem}</strong><p>{issue.suggestion}</p></div>)}{image.report.uncertainties.map((text, i) => <small key={i}>{text}</small>)}</details> : image?.quality.error ? <details className={css.report}><summary>检查暂未完成</summary><p>{image.quality.error}</p></details> : null}
               </div>

@@ -3,6 +3,7 @@ import type { EtsyProduct } from './types.ts'
 import type { EtsyStore } from './store.ts'
 import { selectedCopy } from './selected-copy.ts'
 import { listingText, copyReviewText } from './listing-text.ts'
+import { cleanImageMetadata, type MetadataReport } from '../metadata/aimeta.ts'
 
 // 使用无压缩 ZIP，避免为 Electron 引入新的本地二进制依赖。
 function crc32(bytes: Buffer): number {
@@ -31,8 +32,19 @@ export function zipFiles(files: Array<{ name: string; data: Buffer }>): Buffer {
   end.writeUInt32LE(0x06054b50); end.writeUInt16LE(files.length, 8); end.writeUInt16LE(files.length, 10); end.writeUInt32LE(index.length, 12); end.writeUInt32LE(offset, 16)
   return Buffer.concat([...local, index, end])
 }
-export async function exportProduct(product: EtsyProduct, store: EtsyStore): Promise<Buffer> {
+export type ImageExportReport = (MetadataReport & { file: string }) | { file: string; status: 'failed'; reason: string }
+export async function exportProduct(product: EtsyProduct, store: EtsyStore, onReport?: (reports: ImageExportReport[]) => void): Promise<Buffer> {
   const bundle = await store.export(product.id, product)
+  const reports: ImageExportReport[] = bundle.failures.map(file => ({ file: file.name, status: 'failed', reason: file.message })), images: Array<{ name: string; data: Buffer }> = []
+  for (const file of bundle.files) {
+    try {
+      const cleaned = await cleanImageMetadata(Buffer.from(file.base64, 'base64'))
+      images.push({ name: `images/${file.name}`, data: Buffer.from(cleaned.data) })
+      reports.push({ file: file.name, ...cleaned.report })
+    } catch (error) { reports.push({ file: file.name, status: 'failed', reason: error instanceof Error ? error.message : String(error) }) }
+  }
+  if (!images.length) throw new Error(`全部 ${reports.length} 张图片导出失败，未生成 ZIP。${reports.length ? '\n' + reports.map(report => `${report.file}：${report.reason}`).join('\n') : '请先生成或选择图片。'}`)
+  onReport?.(reports)
   const copy = selectedCopy(product)
   const listing = copy ? listingText(copy) : '当前方案英文文案尚未完成或资料已更新，旧稿保留于 product.json，不能当作当前商品文案。'
   return zipFiles([
@@ -47,7 +59,8 @@ export async function exportProduct(product: EtsyProduct, store: EtsyStore): Pro
       if (!/^[a-zA-Z0-9-]{1,80}$/.test(image.id) || !listing) return []
       return [{ name: `listings/${image.id}.txt`, data: Buffer.from(listingText(listing)) }, { name: `reviews/${image.id}.txt`, data: Buffer.from(copyReviewText(listing)) }]
     }),
-    { name: 'README.txt', data: Buffer.from('图片为 AI 设计结果。视觉质检为模型建议，不能证明实物真实性。调用记录 cost=null 表示金额未知，按供应商账单核对。原始参考图、全部成功图片、检测与文案均保存在本资料包中。') },
-    ...bundle.files.map(file => ({ name: `images/${file.name}`, data: Buffer.from(file.base64, 'base64') })),
+    { name: 'README.txt', data: Buffer.from('图片为 AI 设计结果。视觉质检为模型建议，不能证明实物真实性。调用记录 cost=null 表示金额未知，按供应商账单核对。包内 images 仅包含成功导出的图片；未导出文件与原因见图片元数据处理报告.json。平台内原始参考图和结果继续保留，项目 JSON 中的文件引用以该报告为准。') },
+    { name: '图片元数据处理报告.json', data: Buffer.from(JSON.stringify({ policy: '默认保留来源凭证、作者、版权、色彩配置和方向；凭证保护导致的跳过明确标记。处理失败的图片不打包，其他图片继续导出。项目 JSON 和文案仍按原有导出内容保留。', summary: { total: reports.length, exported: images.length, failed: reports.filter(report => report.status === 'failed').length }, images: reports }, null, 2)) },
+    ...images,
   ])
 }

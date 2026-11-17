@@ -1,3 +1,5 @@
+import { downloadImages } from './metadata-download.ts'
+import { ImageDownloadLink } from './ImageDownloadLink.tsx'
 /**
  * The AI 生图 studio: a three-column layout — left, a card-grouped
  * configuration sidebar (mode tabs, prompt with counter, rounded parameter
@@ -1732,14 +1734,9 @@ export function ImageGenPanel(props: {
   }
 
   const downloadGalleryImages = (): void => {
-    gallery.filter(entry => selectedGalleryIds.has(entry.id)).forEach((entry, index) => {
-      const image = entry.images[0]
-      if (image === undefined) return
-      const anchor = document.createElement('a')
-      anchor.href = image.url
-      anchor.download = `dsh-gallery-${index + 1}.${extensionOf(image.mime)}`
-      anchor.click()
-    })
+    const items = gallery.filter(entry => selectedGalleryIds.has(entry.id)).flatMap((entry, index) =>
+      entry.images.map((image, imageIndex) => ({ url: image.url, name: `dsh-gallery-${index + 1}-${imageIndex + 1}.${extensionOf(image.mime)}` })))
+    void downloadImages(items).catch(() => {})
   }
 
   // Prompt hard limit of the model the generate button will actually use
@@ -1816,7 +1813,7 @@ export function ImageGenPanel(props: {
                 <img className={css.image} src={srcOf(image)} alt={`${group.label} ${imageIndex + 1}`} onContextMenu={event => openCopyMenu(event, image)} />
                 <span className={css.ecommerceResultBadge}>{group.label}</span>
                 <span className={css.ecommerceTaskActions} onClick={event => event.stopPropagation()}>
-                  <a className={css.ecommerceActionChip} href={srcOf(image)} download={`product-${item.slotKey || item.id}-${imageIndex + 1}.${extensionOf(image.mime)}`}>{tt('download')}</a>
+                  <ImageDownloadLink className={css.ecommerceActionChip} href={srcOf(image)} download={`product-${item.slotKey || item.id}-${imageIndex + 1}.${extensionOf(image.mime)}`}>{tt('download')}</ImageDownloadLink>
                   <button type="button" className={css.ecommerceActionChip} disabled={galleryAdding} onClick={() => { void addToGallery(image) }}>{tt('gallery.add')}</button>
                   <button type="button" className={css.ecommerceActionChip} disabled={conversationBusy} onClick={() => { addImageToConversation(image, imageIndex, `${item.id}:${imageIndex}`) }}>{conversationAttachment.busyKey === `${item.id}:${imageIndex}` ? tt('conversation.adding') : tt('conversation.add')}</button>
                 </span>
@@ -3014,14 +3011,14 @@ export function ImageGenPanel(props: {
                       </button>
                       <button type="button" className={css.pptAction} data-reverse-prompt="" onClick={event => { event.stopPropagation(); openReversePrompt(image, index) }}>{tt('prompt.reverse.action')}</button>
                       <button type="button" className={css.imageCopyAction} data-copy-image="" onClick={event => { event.stopPropagation(); void copyImage(image) }}>{tt('image.copy')}</button>
-                      <a
+                      <ImageDownloadLink
                       className={css.download}
                       href={srcOf(image)}
                       download={`dsh-image-${index + 1}.${extensionOf(image.mime)}`}
                       onClick={(event) => { event.stopPropagation() }}
                     >
                       {tt('download')}
-                    </a>
+                    </ImageDownloadLink>
                   </figure>
                 ))}
               </div>
@@ -3167,13 +3164,13 @@ export function ImageGenPanel(props: {
                   <button type="button" className={css.lightboxEdit} onClick={addPreviewToEdit}>
                     {tt('preview.addToEdit')}
                   </button>
-                  <a
+                  <ImageDownloadLink
                     className={css.lightboxDownload}
                     href={srcOf(previewImage)}
                     download={`dsh-image-${preview.index + 1}.${extensionOf(previewImage.mime)}`}
                   >
                     {tt('download')}
-                  </a>
+                  </ImageDownloadLink>
                 </span>
               </div>
             </figure>

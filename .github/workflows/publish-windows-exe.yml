@@ -49,6 +49,9 @@ jobs:
       - name: 检查新协议与既有渠道
         run: pnpm run test:unit
 
+      - name: 检查图片元数据导出
+        run: pnpm run test:metadata
+
       - name: 构建单文件 EXE
         run: pnpm run release:exe
 

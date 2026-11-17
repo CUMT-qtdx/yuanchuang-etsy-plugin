@@ -1,3 +1,4 @@
+import { ImageDownloadLink } from './ImageDownloadLink.tsx'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import css from './creation-image-viewer.module.css'
@@ -64,7 +65,7 @@ export function CreationImageViewer(props: { images: CreationPreviewImage[]; ind
       <footer className={css.footer}>
         <span className={css.dimensions}>{natural.width ? `${natural.width} × ${natural.height}` : ''}</span>
         <div className={css.zoom} role="group" aria-label="图片缩放"><button type="button" aria-label="缩小图片" disabled={!natural.width || failed} onClick={() => resize(0.8)}>−</button><button type="button" disabled={!natural.width || failed} onClick={() => setZoom(null)} title="恢复适应窗口">适应窗口</button><span data-creation-zoom="">{Math.round(scale * 100)}%</span><button type="button" aria-label="放大图片" disabled={!natural.width || failed || scale >= 4} onClick={() => resize(1.25)}>＋</button></div>
-        <a className={css.download} href={image.src} download={image.downloadName} data-creation-download="">下载这张原图</a>
+        <ImageDownloadLink className={css.download} href={image.src} download={image.downloadName} data-creation-download="">下载这张原图</ImageDownloadLink>
       </footer>
     </div>
   </div>, document.body)

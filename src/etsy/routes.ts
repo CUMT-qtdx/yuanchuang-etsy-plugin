@@ -224,7 +224,15 @@ export function makeEtsyRoutes(deps: {
               product.copy = cache.copy; product.copyImageId = imageId; product.copyFactsRevision = cache.factsRevision
             } else { delete product.copy; delete product.copyImageId; delete product.copyFactsRevision }
           }
-          const zip = await exportProduct(product, workflow.store)
+          const summary = { cleaned: 0, partial: 0, uncleaned: 0, unchanged: 0, failed: 0 }
+          let failures: Array<{ file: string; reason: string }> = []
+          const zip = await exportProduct(product, workflow.store, reports => {
+            for (const report of reports) summary[report.status]++
+            // 响应头只带简短预览，完整失败清单始终保留在 ZIP 报告中。
+            failures = reports.filter(report => report.status === 'failed').slice(0, 4).map(report => ({ file: report.file.slice(0, 120), reason: report.reason.slice(0, 160) }))
+          })
+          res.setHeader('x-image-metadata-summary', JSON.stringify(summary))
+          res.setHeader('x-image-metadata-failures', encodeURIComponent(JSON.stringify(failures)))
           res.setHeader('content-type', 'application/zip'); res.setHeader('content-disposition', `attachment; filename="etsy-${product.id}.zip"`); res.setHeader('cache-control', 'no-store'); res.end(zip)
         } catch (error) { res.statusCode = 400; send(res, { ok: false, message: error instanceof Error ? error.message : '导出失败' }) }
       },

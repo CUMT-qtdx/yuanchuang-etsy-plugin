@@ -1,3 +1,4 @@
+import { downloadImages, downloadCanvasFile } from './metadata-download.ts'
 /** Infinite canvas workspace, rebuilt after the node-graph model of
  * basketikun/infinite-canvas: free nodes (image/text), drag-to-connect edges,
  * marquee + multi selection, context menus, minimap, undo/redo and a floating
@@ -1723,12 +1724,7 @@ export function CanvasWorkspace(props: CanvasWorkspaceProps): React.JSX.Element 
   const downloadNode = useCallback((node: CanvasNode): void => {
     const asset = assetOf(node)
     if (asset === undefined || asset.url === '') return
-    const link = globalThis.document.createElement('a')
-    link.href = asset.url
-    link.download = `${node.title || 'canvas-image'}.${asset.assetId.split('.').pop() ?? 'png'}`
-    link.target = '_blank'
-    link.rel = 'noopener'
-    link.click()
+    void downloadImages([{ url: asset.url, name: `${node.title || 'canvas-image'}.${asset.assetId.split('.').pop() ?? 'png'}` }]).catch(() => {})
   }, [])
 
   const upstreamNodes = useCallback((canvasDocument: CanvasDocument, nodeId: string): CanvasNode[] => {
@@ -2026,13 +2022,7 @@ export function CanvasWorkspace(props: CanvasWorkspaceProps): React.JSX.Element 
   const downloadFileNode = useCallback((node: CanvasNode): void => {
     const asset = assetOf(node)
     if (asset === undefined || asset.assetId === '') return
-    const anchor = globalThis.document.createElement('a')
-    anchor.href = asset.url
-    anchor.download = asset.name ?? node.title
-    anchor.rel = 'noopener'
-    globalThis.document.body.appendChild(anchor)
-    anchor.click()
-    anchor.remove()
+    void downloadCanvasFile(asset.url, asset.name ?? node.title, asset.mime).catch(() => {})
   }, [])
 
   /** Open a file asset in the in-app reader (system programs stay one click

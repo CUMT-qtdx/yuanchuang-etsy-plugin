@@ -1,5 +1,5 @@
 import { EtsyWorkflow, EtsyStore, GenerationTaskQueue, validateCopy, validateQuality } from '../.etsy-test/host.js'
-export const pixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='
+export const pixel = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg=='
 export const facts = { name: 'Red scarf felt cat', type: 'physical_felt', requirements: '羊毛毡猫，红围巾，自然比例', materials: 'wool', dimensions: '10 cm', packaging: 'paper box', processing: '5 days', delivery: 'physical item', personalization: 'scarf color', confirmed: true }
 export const modelConfig = { apiUrl: 'https://mock.invalid/v1', apiKey: 'mock-private-secret', model: 'mock-vision-text' }
 export const materialAppearance = { version: '1.0', summary: '模拟主图：细短致密纤维，帽片略松，哑光', regions: [{ label: '身体', box: [450, 600, 120, 120], appearance: '细短压实纤维，低对比，无明显卷圈' }, { label: '帽片', box: [400, 250, 200, 180], appearance: '短纤维片层，软边，原图可见轻微绒毛' }] }

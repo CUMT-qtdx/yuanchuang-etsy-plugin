@@ -1,3 +1,4 @@
+import { downloadImageZip } from './metadata-download.ts'
 import { useEffect, useRef, useState } from 'react'
 import type { GenerateRequest, GeneratedImage } from '../protocol.ts'
 import { ETSY_API, type EtsyProduct, type ProductFacts, type ProductType } from '../etsy/types.ts'
@@ -59,9 +60,8 @@ export function EtsyWorkbench(props: { request: () => GenerateRequest; existingI
   const exportCurrent = async (): Promise<void> => {
     const current = productRef.current
     if (!current || !await saveDraft()) return
-    const link = document.createElement('a')
-    link.href = `${ETSY_API}/export?id=${encodeURIComponent(current.id)}${current.selectedImageId ? `&imageId=${encodeURIComponent(current.selectedImageId)}` : ''}`
-    link.download = `etsy-${current.id}.zip`; link.click()
+    try { await downloadImageZip(`${ETSY_API}/export?id=${encodeURIComponent(current.id)}${current.selectedImageId ? `&imageId=${encodeURIComponent(current.selectedImageId)}` : ''}`, `etsy-${current.id}.zip`) }
+    catch (error) { setError(error instanceof Error ? error.message : '导出失败') }
   }
   const copyCurrent = async (): Promise<void> => {
     if (!draft) return
