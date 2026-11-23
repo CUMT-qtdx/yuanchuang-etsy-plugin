@@ -75,12 +75,17 @@ jobs:
           # 标题统一带 Etsy 标识，更新识别仍使用原始版本号、标签和 EXE 文件名。
           $releaseTitle = if ($version -match '-etsy(?:\.\d+)?$') { $version } else { "$version-etsy" }
           $exe = Get-Item "out/windows-installer/Update-Yuanchuang-Etsy-$version.exe"
-          # 已发布的单 EXE 可能来自本机安装验收，自动重跑不能替换为另一份重新构建的文件。
-          $existingJson = gh release view $tag --repo $env:GITHUB_REPOSITORY --json assets,isDraft 2>$null
+          # 已发布的单 EXE 可能来自本机安装验收，自动重跑不能替换为另一份重新构建的文件；
+          # 若只是删标签下架或上次中断遗留的未发布草稿，则先清理草稿再重新发布。
+          $existingJson = gh release view $tag --repo $env:GITHUB_REPOSITORY --json assets,isDraft,databaseId 2>$null
           if ($LASTEXITCODE -eq 0) {
             $existing = $existingJson | ConvertFrom-Json
             $assets = @($existing.assets)
-            if ($assets.Count -gt 0) {
+            if ($existing.isDraft) {
+              Write-Output "清理同名未发布草稿 Release（id=$($existing.databaseId)），重新发布正式版。"
+              gh api -X DELETE "repos/$env:GITHUB_REPOSITORY/releases/$($existing.databaseId)"
+              if ($LASTEXITCODE -ne 0) { throw '清理旧草稿 Release 失败' }
+            } elseif ($assets.Count -gt 0) {
               if ($assets.Count -ne 1 -or $assets[0].name -ne $exe.Name) { throw '已有发布附件与单 EXE 规则不符，停止自动替换' }
               Write-Output '已有单文件 EXE 附件，保留已验收文件，不覆盖、不追加附件。'
               exit 0
