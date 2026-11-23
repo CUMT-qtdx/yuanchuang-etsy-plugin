@@ -66,3 +66,31 @@
 /* 四个创作档位在窄侧栏中保持两列，避免单行按钮拥挤。 */
 .creativityOptions{grid-template-columns:repeat(2,minmax(0,1fr))}
 .framingPreviewRow{display:flex;gap:10px;align-items:center}.framingPreviewRow>small{flex:1;min-width:0}.framingPreview{position:relative;flex:none;width:76px;max-height:110px;border:1px solid #bfd1e0;background:#fafcfe;overflow:hidden}.framingPreview>span{position:absolute;left:8%;right:8%;background:#dcecf6;border-top:2px solid #40799e;border-bottom:2px solid #40799e}
+
+/* 左侧创作列表紧凑单行化、可折叠分组与原生滚轮滚动修复 */
+.history{gap:6px;padding:10px 6px}
+.historyFallback{flex:0 0 205px}
+.historyHeader{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 2px}
+.historyTitleRow{display:flex;align-items:baseline;gap:6px;min-width:0}
+.history .newGroupButton{padding:2px 7px;font-size:11px;line-height:1.5;border-radius:7px;color:#2f6b4f;background:#edf6f0;border-color:#cde0d4;white-space:nowrap;flex-shrink:0}
+.history .newGroupButton:hover:not(:disabled){background:#e1f0e6}
+.history .newCreation{padding:6px 10px;font-size:12.5px;border-radius:9px}
+.history input{padding:6px 9px;font-size:12px;border-radius:8px}
+.historyList{gap:4px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;padding-right:2px}
+.history .historyItem{flex-direction:row;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;min-height:32px;border-radius:8px}
+.historyTitle{font-size:12.5px;font-weight:500;flex:1 1 auto;min-width:0;display:block!important;-webkit-line-clamp:unset!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.history .historyItem[aria-current=page] .historyTitle{font-weight:600;color:#1f4e37}
+.historyMeta{font-size:11px;color:var(--dsw-alias-label-tertiary,#7f8a96);white-space:nowrap;flex-shrink:0}
+.historyGroup{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+.history .historyGroupHeader{width:100%;display:flex;align-items:center;gap:5px;padding:4px 6px;border:0;border-radius:7px;background:transparent;text-align:left;font-size:11.5px;font-weight:600;color:#486153}
+.history .historyGroupHeader:hover{background:#eef4f0}
+.historyGroupArrow{width:11px;flex-shrink:0;text-align:center;color:#6c8274;font-size:10px}
+.historyGroupName{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.historyGroupCount{font-size:11px;font-weight:500;color:#7a8a80;flex-shrink:0}
+.historyGroupItems{display:flex;flex-direction:column;gap:3px;padding-left:6px}
+.historyGroupEmpty{margin:2px 6px 4px;font-size:11px;color:#8b9790}
+.contextMenu{max-height:70vh;overflow-y:auto}
+.menuDivider{height:1px;background:var(--dsw-alias-border-l1,#eaedf1);margin:4px 6px}
+.menuSectionLabel{padding:4px 10px 2px;font-size:11px;color:var(--dsw-alias-label-tertiary,#7c8793);font-weight:600}
+.contextMenu button.groupMenuItem{color:var(--dsw-alias-label-primary,#2d3d35);padding:6px 12px;font-size:12.5px}
+.contextMenu button.groupMenuItem:hover:not(:disabled){background:#edf5f0}

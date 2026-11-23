@@ -353,12 +353,13 @@ export class SubscriptionManager {
     if (vendor === 'antigravity') {
       const projectId = await this.ensureAntigravityProject(session)
       const aspectRatio = antigravityAspectRatioOf(options.size)
+      const normalizedQuality = (options.quality ?? '').trim().toLowerCase()
       const result = await antigravityGenerateImage({
         blob: session,
         projectId,
         prompt: text,
         ...(aspectRatio !== undefined ? { aspectRatio } : {}),
-        hd: options.quality === 'hd' || options.quality === 'high',
+        hd: normalizedQuality === 'hd' || normalizedQuality === 'high' || normalizedQuality === '2k' || normalizedQuality === '4k',
         ...(references.length > 0 ? { referenceImages: references } : {}),
         ...(options.signal !== undefined ? { signal: options.signal } : {}),
       })
@@ -373,12 +374,32 @@ export class SubscriptionManager {
       // reference images go as data-URL image_url entries (JSON, not multipart).
       url = references.length > 0 ? CODEX_IMAGE_EDIT_URL : CODEX_IMAGE_URL
       headers = codexIdentityHeaders(session)
+      const codexSizeMap: Record<string, string> = {
+        '1:1': '1024x1024',
+        '2:3': '1024x1536',
+        '3:4': '1024x1536',
+        '9:16': '1024x1536',
+        '3:2': '1536x1024',
+        '4:3': '1536x1024',
+        '16:9': '1536x1024',
+        '21:9': '1536x1024',
+      }
+      const codexQualityMap: Record<string, string> = {
+        '1k': 'low',
+        '2k': 'medium',
+        '4k': 'high',
+        hd: 'high',
+      }
+      const rawSize = options.size?.trim() ?? ''
+      const mappedSize = codexSizeMap[rawSize] ?? rawSize
+      const rawQuality = options.quality?.trim() ?? ''
+      const mappedQuality = codexQualityMap[rawQuality.toLowerCase()] ?? rawQuality
       body = {
         prompt: text,
         model: CODEX_IMAGE_MODEL,
         ...(references.length > 0 ? { images: references.map(image => ({ image_url: toDataUrl(image) })) } : {}),
-        ...(options.size !== undefined && options.size.length > 0 ? { size: options.size } : {}),
-        ...(options.quality !== undefined && options.quality.length > 0 ? { quality: options.quality } : {}),
+        ...(mappedSize.length > 0 ? { size: mappedSize } : {}),
+        ...(mappedQuality.length > 0 ? { quality: mappedQuality } : {}),
       }
     } else {
       // Grok edits ride the public /v1/images/edits JSON endpoint; reference
@@ -387,8 +408,22 @@ export class SubscriptionManager {
       headers = grokIdentityHeaders(session)
       // Grok thinks in aspect ratios, not sizes; and has two quality tiers
       // where high is composed from medium.
-      const aspect: Record<string, string> = { '1024x1024': '1:1', '1024x1536': '2:3', '1536x1024': '3:2', auto: 'auto' }
-      const level = options.quality === 'low' ? 'low' : (options.quality === 'medium' || options.quality === 'high') ? 'medium' : undefined
+      const aspect: Record<string, string> = {
+        '1024x1024': '1:1',
+        '1024x1536': '2:3',
+        '1536x1024': '3:2',
+        '1792x1024': '16:9',
+        '1024x1792': '9:16',
+        '1024x768': '4:3',
+        '768x1024': '3:4',
+        auto: 'auto',
+      }
+      const normalizedQuality = (options.quality ?? '').trim().toLowerCase()
+      const level = normalizedQuality === 'low' || normalizedQuality === '1k'
+        ? 'low'
+        : (normalizedQuality === 'medium' || normalizedQuality === 'high' || normalizedQuality === 'hd' || normalizedQuality === '2k' || normalizedQuality === '4k')
+          ? 'medium'
+          : undefined
       body = {
         prompt: text,
         model: GROK_IMAGE_MODEL,

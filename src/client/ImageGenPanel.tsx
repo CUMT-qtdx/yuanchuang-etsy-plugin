@@ -810,7 +810,16 @@ export function ImageGenPanel(props: {
   const sidebarHistoryHost = useSidebarHistoryHost()
   const modeGroups: ImageModelGroup[] = tab === 'edit'
     ? modelGroups
-        .map(group => ({ ...group, models: group.models.filter(candidate => describeModel(candidate).supportsEdit) }))
+        .map(group => {
+          const channel = (config?.channels ?? []).find(candidate => candidate.id === group.id)
+          return {
+            ...group,
+            models: group.models.filter(candidate => {
+              const underlyingId = channel?.models.find(item => item.alias === candidate)?.id ?? candidate
+              return describeModel(underlyingId).supportsEdit
+            }),
+          }
+        })
         .filter(group => group.models.length > 0)
     : modelGroups
   const modeModels = [...new Set(modeGroups.flatMap(group => group.models))]
@@ -879,10 +888,18 @@ export function ImageGenPanel(props: {
 
   // A saved settings change is authoritative. Keep both levels of the active
   // selection and comparison choices inside the current channel/model matrix.
-  const modelPreferenceKey = `${modeGroups.map(group => `${group.id}:${group.models.join(',')}`).join('|')}\u0000${defaultModel ?? ''}`
+  const modelPreferenceKey = `${modeGroups.map(group => `${group.id}:${group.models.join(',')}`).join('|')}\u0000${defaultChannelId ?? ''}\u0000${defaultModel ?? ''}`
+  const lastDefaultChannelRef = useRef<string | undefined>(defaultChannelId)
   useEffect(() => {
     const preferred = defaultModel !== undefined && modeModels.includes(defaultModel) ? defaultModel : modeModels[0] ?? ''
-    const selected = resolveModelChoice(modeGroups, { channelId: modelChannelId, model: preferred }, defaultChannelId)
+    // 设置页显式切换默认渠道时，优先跟随新默认渠道；同别名多渠道不会停留在旧渠道。
+    const defaultChannelChanged = lastDefaultChannelRef.current !== defaultChannelId
+    lastDefaultChannelRef.current = defaultChannelId
+    const selected = resolveModelChoice(
+      modeGroups,
+      { channelId: defaultChannelChanged ? defaultChannelId : modelChannelId, model: preferred },
+      defaultChannelId,
+    )
     setModel(selected.model)
     setModelChannelId(selected.channelId)
     setCompareModels(previous => {
@@ -1381,7 +1398,7 @@ export function ImageGenPanel(props: {
     anchor.href = url
     anchor.download = `dsh-product-set-${(ecommerce.projectName || ecommerce.productName || 'set').replace(/[^\w-]+/g, '-')}.json`
     anchor.click()
-    URL.revokeObjectURL(url)
+    window.setTimeout(() => { URL.revokeObjectURL(url) }, 60_000)
   }
 
   const openPreview = (previewImages: GeneratedImage[], index: number): void => {
@@ -1730,7 +1747,7 @@ export function ImageGenPanel(props: {
     anchor.href = url
     anchor.download = `dsh-imagegen-gallery-${new Date().toISOString().slice(0, 10)}.json`
     anchor.click()
-    URL.revokeObjectURL(url)
+    window.setTimeout(() => { URL.revokeObjectURL(url) }, 60_000)
   }
 
   const downloadGalleryImages = (): void => {

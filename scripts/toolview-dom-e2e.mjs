@@ -24,6 +24,11 @@ const dom = await JSDOM.fromURL(baseUrl, {
   runScripts: 'dangerously',
   pretendToBeVisual: true,
   virtualConsole,
+  beforeParse(window) {
+    // 图片导出的元数据处理使用这两个浏览器 API，jsdom 默认没有提供。
+    window.TextEncoder = TextEncoder
+    window.TextDecoder = TextDecoder
+  },
 })
 const { window } = dom
 const document = window.document
@@ -65,7 +70,7 @@ try {
   const download = document.querySelector('[data-image-download]')
   assert.ok(download, 'viewer offers a download action')
   assert.equal(download.tagName, 'A')
-  assert.equal(download.getAttribute('href'), 'blob:mock/result')
+  assert.equal(download.getAttribute('href'), '#export-image', '下载先经过现有图片导出处理')
   assert.equal(download.getAttribute('download'), 'result.png', 'download keeps a file extension')
 
   assert.match(dialog.textContent ?? '', /1 \/ 2/, 'multi-image results show a counter')

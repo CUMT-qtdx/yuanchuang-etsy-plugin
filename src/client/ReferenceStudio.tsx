@@ -3,7 +3,7 @@ import { ImageDownloadLink } from './ImageDownloadLink.tsx'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PLUGIN_VERSION, type ChannelConfig, type GenerateRequest } from '../protocol.ts'
-import { ETSY_API, type EtsyCopy, type EtsyProduct, type ProductFacts, type ProductImage, type ProductType, type CreationTask, type CreativityMode, type QualityReport } from '../etsy/types.ts'
+import { ETSY_API, type CreationGroup, type EtsyCopy, type EtsyProduct, type ProductFacts, type ProductImage, type ProductType, type CreationTask, type CreativityMode, type QualityReport } from '../etsy/types.ts'
 import { etsyCall, EtsyRouteError } from './etsy-api.ts'
 import { readLocalNames, writeLocalName, clearLocalName, withLocalName } from './creation-names.ts'
 import { useCopyEditor } from './useCopyEditor.ts'
@@ -59,7 +59,7 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; channel
   const generationRequest = (): GenerateRequest => ({ ...props.request(), quality: resolution, size: photography.aspect_ratio, photography, materialPreset: CURRENT_MATERIAL })
   const countByMode = useRef<Record<CreativityMode, number>>({ preserve: 1, gentle: 4, balanced: 4, bold: 4 })
   const [creativity, setCreativity] = useState<CreativityMode>('balanced'), [autoCheck, setAutoCheck] = useState(true), [maxCalls, setMaxCalls] = useState(100)
-  const [products, setProducts] = useState<EtsyProduct[]>([]), [id, setId] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('')
+  const [products, setProducts] = useState<EtsyProduct[]>([]), [groups, setGroups] = useState<CreationGroup[]>([]), [id, setId] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const [nameNotice, setNameNotice] = useState('')
   const [instruction, setInstruction] = useState(''), [tab, setTab] = useState<'titles' | 'description' | 'tags'>('titles')
   const [editing, setEditing] = useState(false), [actionBusy, setActionBusy] = useState(false)
@@ -100,9 +100,14 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; channel
       refreshing = true
       try {
         const localNames = readLocalNames()
-        const list = (await etsyCall<EtsyProduct[]>('list')).filter(product => !deletedProjects.current.has(product.id)).map(product => withLocalName(product, localNames))
+        const [rawList, rawGroups] = await Promise.all([
+          etsyCall<EtsyProduct[]>('list'),
+          etsyCall<CreationGroup[]>('groups').catch(() => undefined),
+        ])
+        const list = rawList.filter(product => !deletedProjects.current.has(product.id)).map(product => withLocalName(product, localNames))
         if (disposed) return
         setProducts(list)
+        if (Array.isArray(rawGroups)) setGroups(rawGroups)
         // 宿主重启后第一次刷新时，把因旧路由缺失而暂存在本机的名称写回创作档案。
         if (!namesSynced.current) {
           namesSynced.current = true
@@ -161,6 +166,26 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; channel
       setProducts(previous => previous.map(item => item.id === projectId ? { ...item, displayName: name } : item))
       setNameNotice('名称已在本机生效；完全重启宿主后会自动同步到创作档案。')
     }
+  }
+  const createGroup = async (name: string): Promise<CreationGroup[]> => {
+    const next = await etsyCall<CreationGroup[]>('create-group', { name })
+    setGroups(next)
+    return next
+  }
+  const renameGroup = async (groupId: string, name: string): Promise<CreationGroup[]> => {
+    const next = await etsyCall<CreationGroup[]>('rename-group', { groupId, name })
+    setGroups(next)
+    return next
+  }
+  const deleteGroup = async (groupId: string): Promise<CreationGroup[]> => {
+    const next = await etsyCall<CreationGroup[]>('delete-group', { groupId })
+    setGroups(next)
+    setProducts(previous => previous.map(item => item.groupId === groupId ? { ...item, groupId: undefined } : item))
+    return next
+  }
+  const moveProjectGroup = async (projectId: string, groupId: string): Promise<void> => {
+    const next = await etsyCall<EtsyProduct>('move-group', { id: projectId, groupId })
+    accept(next)
   }
   const create = async (): Promise<void> => {
     if (lock.current || dirty.current || modelSaving) return
@@ -260,7 +285,7 @@ export function ReferenceStudio(props: { request: () => GenerateRequest; channel
     : product.copyStage.status === 'cancelled' ? '文案任务已取消，已有图片仍可查看。'
     : product.copyStage.status === 'skipped' ? chosen ? '当前图片尚未准备文案，可点击下方按钮准备。' : '本次未启动文案，请先处理图片或分析阶段的问题。'
     : product.copyStage.status === 'running' ? '正在为当前图片准备文案，请稍候…' : '当前图片的文案正在等待准备，准备好后会自动出现。'
-  const history = <CreationHistory products={products} selectedId={id} disabled={busy} notice={nameNotice} onSelect={selectProject} onDelete={deleteProject} onRename={renameProject} />
+  const history = <CreationHistory products={products} groups={groups} selectedId={id} disabled={busy} notice={nameNotice} onSelect={selectProject} onDelete={deleteProject} onRename={renameProject} onCreateGroup={createGroup} onRenameGroup={renameGroup} onDeleteGroup={deleteGroup} onMoveGroup={moveProjectGroup} />
   return <div className={css.studio} data-reference-studio="" data-current-project={id || 'new'}>
     {imagePreview ? <CreationImageViewer images={imagePreview.images} index={imagePreview.index} onIndex={index => setImagePreview(current => current ? { ...current, index } : undefined)} onClose={() => setImagePreview(undefined)} /> : null}
     <header className={css.header}><div className={css.brand}><strong>元创 Etsy Studio</strong><small data-studio-version="">{PLUGIN_VERSION}</small></div><div className={css.actions}><AppUpdateButton /><button type="button" onClick={props.onAdvanced}>高级工具</button></div></header>

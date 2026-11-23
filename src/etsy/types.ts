@@ -125,6 +125,8 @@ export interface EtsyProduct {
   facts: ProductFacts
   // 用户自定义的创作名称，只影响左侧列表、搜索和导出名；不参与文案生成。
   displayName?: string
+  // 左侧创作列表所属分组 ID，缺省表示未分组；只影响侧栏归类，不参与文案和生图。
+  groupId?: string
   factsRevision?: number
   copyFactsRevision?: number
   planning?: Stage
@@ -196,6 +198,11 @@ export interface StudioModelChoices {
 export interface StudioModelControls {
   read(): Promise<StudioModelChoices>
   save(body: Record<string, unknown>): Promise<StudioModelChoices>
+}
+export interface CreationGroup {
+  id: string
+  name: string
+  createdAt: number
 }
 export const ETSY_API = '/api/dsh-imagegen/etsy'
 export const emptyStage = (): Stage => ({ status: 'queued', attempts: 0 })

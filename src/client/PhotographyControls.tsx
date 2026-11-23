@@ -19,6 +19,8 @@ export function PhotographyControls(props: { value: PhotographySettings; onChang
     'natural-tabletop': '干净木纹桌面与素墙，突出桌面商品摄影。',
     'home-lifestyle': '可辨认的沙发、书架或落地灯，体现真实房间纵深。',
     'seasonal-lifestyle': '按商品主题布置背景，环境装饰与商品保持分离。',
+    'hanging-display': '挂在松枝、横拉麻绳或挂钩上自然垂挂展示，保留顶部挂绳空间，适合毛毡挂件。',
+    'flat-lay': '90° 正上方俯拍平铺展示（木板/亚麻/干净浅底），挂绳自然舒展，适合单件或成套挂饰。',
     'white-studio': '纯白无缝背景与白色承托面，移除原图木桌和房间。',
     custom: '把描述用于拍摄环境，不改变商品设计。',
   }

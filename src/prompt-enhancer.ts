@@ -298,18 +298,134 @@ export async function chatComplete(config: PromptModelConfig, options: ChatOptio
   return answer
 }
 
+/** 从指定起始下标提取第一段括号配平的 JSON 对象或数组文本，忽略字符串内的括号。 */
+function extractBalancedJson(text: string, start: number): string {
+  const open = text[start]
+  if (open !== '{' && open !== '[') return ''
+  const stack: string[] = [open === '{' ? '}' : ']']
+  let inString = false
+  let escaped = false
+  for (let i = start + 1; i < text.length; i += 1) {
+    const ch = text[i]!
+    if (inString) {
+      if (escaped) { escaped = false; continue }
+      if (ch === '\\') { escaped = true; continue }
+      if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') { inString = true; continue }
+    if (ch === '{') stack.push('}')
+    else if (ch === '[') stack.push(']')
+    else if (ch === '}' || ch === ']') {
+      if (stack[stack.length - 1] === ch) {
+        stack.pop()
+        if (stack.length === 0) return text.slice(start, i + 1)
+      }
+    }
+  }
+  // 模型偶发漏掉末尾 1～2 个闭合括号时自动补齐；截断在字符串内部时不猜测补全。
+  if (!inString && stack.length > 0 && stack.length <= 3) {
+    return text.slice(start) + stack.reverse().join('')
+  }
+  return ''
+}
+
+/** 仅修复常见的非标准 JSON 标点（未加双引号的键名、裸枚举值、尾逗号、字符串内裸换行），绝不伪造字段内容。 */
+function repairRelaxedJson(raw: string): string {
+  // 1) 转义字符串字面量内部未转义的换行与制表符，保留字符串外原样。
+  let escapedStrings = ''
+  let inString = false
+  let escaped = false
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i]!
+    if (inString) {
+      if (escaped) { escapedStrings += ch; escaped = false; continue }
+      if (ch === '\\') { escapedStrings += ch; escaped = true; continue }
+      if (ch === '"') { escapedStrings += ch; inString = false; continue }
+      if (ch === '\n') { escapedStrings += '\\n'; continue }
+      if (ch === '\r') { escapedStrings += '\\r'; continue }
+      if (ch === '\t') { escapedStrings += '\\t'; continue }
+      escapedStrings += ch
+      continue
+    }
+    if (ch === '"') inString = true
+    escapedStrings += ch
+  }
+
+  // 2) 仅在字符串外部做语法归一化，避免误改字符串正文。
+  let out = ''
+  inString = false
+  escaped = false
+  let tokenStart = 0
+  const flushOutside = (segment: string): string => segment
+    // 未加引号的对象键名：{status: -> {"status": , issues: -> ,"issues":
+    .replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_-]*)(\s*:)/g, '$1"$2"$3')
+    // 裸状态/方向枚举值：:PASS, -> :"PASS",
+    .replace(/(:\s*)(PASS|REVISE|REJECT|UNKNOWN|DRIFT|near|far|uncertain)(?=\s*[,}\]])/g, '$1"$2"')
+    // 去除对象或数组末尾多余逗号
+    .replace(/,(\s*[}\]])/g, '$1')
+
+  for (let i = 0; i < escapedStrings.length; i += 1) {
+    const ch = escapedStrings[i]!
+    if (inString) {
+      if (escaped) { escaped = false; continue }
+      if (ch === '\\') { escaped = true; continue }
+      if (ch === '"') {
+        out += escapedStrings.slice(tokenStart, i + 1)
+        inString = false
+        tokenStart = i + 1
+      }
+      continue
+    }
+    if (ch === '"') {
+      // 处理模型偶发的 `,"}` / `,"]` 孤立引号笔误（逗号后紧跟无闭合引号并直接收尾）。
+      const before = escapedStrings.slice(tokenStart, i)
+      const tailMatch = /^"\s*([}\]])/.exec(escapedStrings.slice(i))
+      if (/,\s*$/.test(before) && tailMatch !== null) {
+        out += flushOutside(before.replace(/,\s*$/, ''))
+        tokenStart = i + 1
+        continue
+      }
+      out += flushOutside(before)
+      inString = true
+      tokenStart = i
+    }
+  }
+  if (tokenStart < escapedStrings.length) {
+    out += inString ? escapedStrings.slice(tokenStart) : flushOutside(escapedStrings.slice(tokenStart))
+  }
+  return out
+}
+
 /** Strip a fenced code block and pull the outermost JSON object/array out. */
 export function jsonPayload(content: string): unknown {
-  const cleaned = stripReasoning(content).replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
+  const cleaned = stripReasoning(content).replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
   const objectStart = cleaned.indexOf('{')
   const objectEnd = cleaned.lastIndexOf('}')
   const arrayStart = cleaned.indexOf('[')
   const arrayEnd = cleaned.lastIndexOf(']')
-  const useArray = arrayStart >= 0 && arrayEnd > arrayStart && (objectStart < 0 || arrayStart < objectStart)
+  const useArray = arrayStart >= 0 && (objectStart < 0 || arrayStart < objectStart)
   const start = useArray ? arrayStart : objectStart
   const end = useArray ? arrayEnd : objectEnd
-  if (start < 0 || end <= start) return undefined
-  try { return JSON.parse(cleaned.slice(start, end + 1)) as unknown } catch { return undefined }
+  if (start < 0) return undefined
+
+  const candidates: string[] = []
+  if (end > start) candidates.push(cleaned.slice(start, end + 1))
+  const balanced = extractBalancedJson(cleaned, start)
+  if (balanced !== '' && balanced !== candidates[0]) candidates.push(balanced)
+
+  for (const candidate of candidates) {
+    try { return JSON.parse(candidate) as unknown } catch { /* 继续尝试容错修复 */ }
+  }
+  for (const candidate of candidates) {
+    const repaired = repairRelaxedJson(candidate)
+    try { return JSON.parse(repaired) as unknown } catch { /* 继续尝试对修复后的文本重新提取配平片段 */ }
+    const rebalanced = extractBalancedJson(repaired, 0)
+    if (rebalanced !== '') {
+      try { return JSON.parse(rebalanced) as unknown } catch { /* 放弃 */ }
+    }
+  }
+  return undefined
 }
 
 /** Expand a concise image request into a production-ready image prompt. */

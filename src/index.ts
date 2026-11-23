@@ -8,7 +8,6 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { readFileSync } from 'node:fs'
 import { mkdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { installSettingsSectionCompat, resolveSettingsNamespaceCompat, settingsNamespaceCompat } from './settings-compat.ts'
@@ -798,10 +797,12 @@ export function apply(ctx: Context, config?: Config): (() => void) | void {
     if (kind === 'gallery' && !storage.syncGallery) return
     if (kind === 'history' && !storage.syncHistory) return
     const key = `${storage.prefix}/${kind === 'gallery' ? 'gallery' : 'images'}/${path.basename(filePath)}`
-    const data = readFileSync(filePath)
-    void putObject(storage, key, data, mimeOfPath(filePath)).catch(() => {
-      // Best-effort sync: surfaced through the settings test, never fatal here.
-    })
+    void readFile(filePath)
+      .then(data => putObject(storage, key, data, mimeOfPath(filePath)))
+      .catch(error => {
+        // 异步尽力同步，不阻塞主线程与保存流程，仅输出简短告警便于排查。
+        console.warn(`[dsh-imagegen] storage sync skipped (${key}): ${error instanceof Error ? error.message : String(error)}`)
+      })
   })
 
   // Browser endpoints and Agent tools share the exact same serial queue. This
@@ -1216,6 +1217,7 @@ export function apply(ctx: Context, config?: Config): (() => void) | void {
           void syncAllTemplates().catch(() => { /* keep the last good snapshot */ })
         }
         const startTimer = setTimeout(runSync, TEMPLATE_SYNC_INITIAL_DELAY_MS)
+        startTimer.unref?.()
         syncTimer = setInterval(runSync, TEMPLATE_SYNC_INTERVAL_MS)
         syncTimer.unref?.()
         return () => {
@@ -1282,5 +1284,5 @@ export function apply(ctx: Context, config?: Config): (() => void) | void {
   // no settings service, whose installSettingsSection never fires its hooks).
   sync()
 
-  return () => { etsy.dispose(); setStorageSyncHandler(undefined) }
+  return () => { disposeSection?.(); etsy.dispose(); setStorageSyncHandler(undefined) }
 }

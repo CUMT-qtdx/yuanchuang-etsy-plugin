@@ -10,8 +10,8 @@ import type { StudioModelControls } from './etsy/types.ts'
 import { spawn } from 'node:child_process'
 import { mkdir as fsMkdir } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { homedir } from 'node:os'
 import path from 'node:path'
+import { imageDataRoot } from './image-storage-path.ts'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import type { ImageAttachmentRef, ImageMediaType, SaveImageAttachment } from '@deepseek-ai/dsh-attachment'
 import { SettingsConflictError, type SettingsDescriptor } from '@deepseek-ai/dsh-settings'
@@ -2018,7 +2018,7 @@ export function makeRoutes(deps: ImageGenRoutesDeps): WebRoute[] {
       handler: async (req, res) => {
         if (!guard(req, res, 'POST')) return
         const body = await readJsonBody(req)
-        const dir = path.join(homedir(), '.dsh', 'dsh-imagegen')
+        const dir = imageDataRoot()
         try {
           await fsMkdir(dir, { recursive: true })
         } catch { /* reveal still works when the directory already exists */ }

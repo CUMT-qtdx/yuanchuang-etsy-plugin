@@ -4,7 +4,7 @@ export const STUDIO_MATERIAL_V2 = 'needle_felt_v2_0' as const
 export const STUDIO_MATERIAL_REVISION = '1' as const
 
 // 这是给图像模型的材料描述，不是用于扫描用户或模型文字的词表。
-export const NEEDLE_FELT_CORE_V2 = 'Render the main sculpted form as a solid, hand-shaped needle-felted wool object. Fine short wool fibers are compressed and interlocked through its volume, forming a cohesive non-woven surface. At normal product-photo scale the felt is compact, softly matte and tactile; close inspection reveals irregular embedded fibers and subtle handmade density variations. Keep clear sculpted volumes and a restrained soft fiber edge. Clothing and accessories retain their individually specified materials and construction. Their texture belongs to those parts only. Material treatment never changes geometry, expression or pose.'
+export const NEEDLE_FELT_CORE_V2 = 'Render the main sculpted form as a solid, hand-shaped needle-felted wool object. Fine short wool fibers are compressed and interlocked through its volume, forming a cohesive non-woven surface. At normal product-photo scale the felt is compact, softly matte and tactile; close inspection reveals irregular embedded fibers and subtle handmade density variations. Differentiate felting density by part: faces and limbs stay finely compacted, hair or beards follow gentle directional fibers, and layered felt clothing or wings keep distinct thickness and soft readable edges. Light wool retains visible short fibers and dark wool stays matte without a glossy shell. Clothing and accessories retain their individually specified materials and construction. Material treatment never changes geometry, expression or pose.'
 
 export interface NormalizedMaterialPlan { plan: MaterialPlanV2; notes: string[] }
 const short = (value: unknown, limit: number): string => typeof value === 'string' ? value.trim().slice(0, limit) : ''
@@ -43,12 +43,13 @@ export function materialPlanBlockV2(plan: MaterialPlanV2, editing = false): stri
 
 export function materialAnalysisV2(stage: 'planning' | 'identity' | 'quality'): string {
   if (stage === 'identity') return '[STUDIO_V2_MATERIAL_OBSERVATION]\n只记录批准主图可见的材料和连接，不重新设计或把不理想表面说成正确针毡。看不清保留未知；材质评价与身份记录分开。'
-  if (stage === 'quality') return '[STUDIO_V2_MATERIAL_REVIEW]\n按部件比较目标材料与成图：主体是否有连续压实羊毛体、细纤维是否自然嵌入，服装和配件是否保留各自材料。区分自然交错纤维与周期性织物结构，避免以塑料光滑作为合格针毡。只报告可见问题；不确定写UNKNOWN。检查本身不自动重试，不证明实物材料。'
+  if (stage === 'quality') return '[STUDIO_V2_MATERIAL_REVIEW]\n按部件比较目标材料与成图：主体是否有连续压实羊毛体、细纤维是否自然嵌入，服装和配件是否保留各自材料。区分自然交错纤维与周期性织物结构，避免以塑料光滑作为合格针毡；毛毡挂件还需核对挂绳/顶帽/金属环连接与表层手工刺绣清晰度，不把正常垂挂判成悬浮。只报告可见问题；不确定写UNKNOWN。检查本身不自动重试，不证明实物材料。'
   return `[STUDIO_V2_MATERIAL_PLAN]
 这是毛毡商品创作。主体目标为连续、紧实、哑光的针刺羊毛体，保留细短不规则纤维；参考图的身份与原材料分开理解。
 每个方案在原有同一次JSON输出中增加两个字段：
 designBrief：简洁英文，只写主体、数量、造型、配色、表情、姿态、服装配件及该方案变化，不重复材料工艺、摄影参数或禁止词清单。
-materialPlan:{parts:[{part,material,treatment}]}：part使用任何实际部件名称；material用简短英文写该部件唯一目标材料；treatment为felt（立体针毡）、retain（按此材料保留）、unspecified（未知）。只记录存在或明确新增的部件，不凑清单，不推断实物成分。衣服可以是布、针织或毡片，配件可以是任意材料；不要因它们出现在主体附近就同化成针毡。眼睛、鼻头、珠类小件默认 retain，不归羊毛；material 写可见珠面或高光，不要写成羊毛毡。原prompt字段可与designBrief相同，保持原有JSON兼容。
+materialPlan:{"parts":[{"part":"...","material":"...","treatment":"felt"}]}：part使用任何实际部件名称；material用简短英文写该部件唯一目标材料；treatment为felt（立体针毡）、retain（按此材料保留）、unspecified（未知）。只记录存在或明确新增的部件，不凑清单，不推断实物成分。衣服可以是布、针织或毡片，配件可以是任意材料；不要因它们出现在主体附近就同化成针毡。黑色珠眼及原图明确可见的硬质珠类、金属小件默认 retain，不归羊毛，material 写可见珠面或微弱高光；角色鼻头、脸颊和手脚除非原图明确是光滑硬珠，否则默认按 felt 哑光羊毛毡处理，不要画成反光塑料珠。
+若参考图或需求属于毛毡挂件/吊饰/圣诞球/圣诞袜/树挂/钥匙扣等小挂件，在 feltProfile 中标记 "productForm":"ornament"（桌面摆件/人物动物玩偶标记 "figurine"）；同时将可见的麻绳挂环（jute twine loop）、细棉挂绳（thin cotton hanging string）、微型金属羊眼钉/挂环（tiny metal eyelet）及表层手工刺绣缝线（hand-embroidered wool/cotton thread motifs）在 materialPlan 中记为 retain，保留原材与自然连接，不要同化成粗毛毡条。原prompt字段可与designBrief相同，保持原有JSON兼容。
 发送前在本次规划回答内统一每个部件的材料意图：一个部件只有一份材料决定。材质放materialPlan，设计放designBrief；不要输出思考过程，也不新增分析调用。`
 }
 

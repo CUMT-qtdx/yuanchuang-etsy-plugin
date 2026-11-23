@@ -6,7 +6,7 @@ import type { GenerationTaskQueue } from '../task-queue.ts'
 import type { PromptModelConfig } from '../prompt-enhancer.ts'
 import { EtsyStore } from './store.ts'
 import { liveEtsyModels, mergeCopyRepair, validateCopy, validateReferencePlan, type EtsyModels } from './models.ts'
-import { emptyStage, type CreativityMode, type CallRecord, type CopyContext, type EtsyProduct, type ProductImage, type ProductStart, type ReferencePlan, type Stage, type FinalDesign, type ViewAngle, type ReferenceInput } from './types.ts'
+import { emptyStage, type CreationGroup, type CreativityMode, type CallRecord, type CopyContext, type EtsyProduct, type ProductImage, type ProductStart, type ReferencePlan, type Stage, type FinalDesign, type ViewAngle, type ReferenceInput } from './types.ts'
 import { selectedCopy, productStages } from './selected-copy.ts'
 import { listingUsesEnglish } from './copy-style.ts'
 import { creativityMode, referenceGenerationPrompt, refinementPrompt } from './design-strategy.ts'
@@ -34,6 +34,7 @@ export class EtsyWorkflow {
   readonly store: EtsyStore
   readonly ready: Promise<void>
   private products: EtsyProduct[] = []
+  private groups: CreationGroup[] = []
   private serial: Promise<unknown> = Promise.resolve()
   private readonly controllers = new Map<string, AbortController>()
   private readonly generationTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -69,6 +70,7 @@ export class EtsyWorkflow {
   }
   private async recover(): Promise<void> {
     this.products = await this.store.load()
+    this.groups = await this.store.loadGroups()
     for (const product of this.products) {
       let changed = false
       for (const call of product.calls) if (call.status === 'running' || call.status === 'queued') {
@@ -1269,6 +1271,72 @@ export class EtsyWorkflow {
       const product = this.find(id)
       product.displayName = displayName
       // 显示名不参与文案/编辑的乐观锁，避免让未保存的文案草稿失效。
+      await this.store.save(product, { bumpRevision: false })
+      return structuredClone(product)
+    })
+  }
+  private validateGroupName(name: string): string {
+    const clean = typeof name === 'string' ? name.trim() : ''
+    if (!clean) throw new Error('请输入分组名称')
+    if ([...clean].length > 40) throw new Error('分组名称请控制在 40 字以内')
+    // eslint-disable-next-line no-control-regex
+    if (/[\u0000-\u001f\u007f]/.test(clean)) throw new Error('分组名称不能包含控制字符')
+    return clean
+  }
+  async listGroups(): Promise<CreationGroup[]> {
+    await this.ready; await this.serial
+    return structuredClone(this.groups)
+  }
+  async createGroup(name: string): Promise<CreationGroup[]> {
+    const clean = this.validateGroupName(name)
+    return this.tx(async () => {
+      if (this.groups.some(group => group.name.toLocaleLowerCase() === clean.toLocaleLowerCase())) throw new Error('已存在同名分组')
+      if (this.groups.length >= 50) throw new Error('分组数量已达上限（50 个）')
+      const next: CreationGroup[] = [...this.groups, { id: randomUUID(), name: clean, createdAt: Date.now() }]
+      await this.store.saveGroups(next)
+      this.groups = next
+      return structuredClone(this.groups)
+    })
+  }
+  async renameGroup(groupId: string, name: string): Promise<CreationGroup[]> {
+    if (!/^[a-zA-Z0-9-]{1,80}$/.test(groupId)) throw new Error('无效分组 ID')
+    const clean = this.validateGroupName(name)
+    return this.tx(async () => {
+      const target = this.groups.find(group => group.id === groupId)
+      if (!target) throw new Error('分组不存在')
+      if (this.groups.some(group => group.id !== groupId && group.name.toLocaleLowerCase() === clean.toLocaleLowerCase())) throw new Error('已存在同名分组')
+      const next = this.groups.map(group => group.id === groupId ? { ...group, name: clean } : group)
+      await this.store.saveGroups(next)
+      this.groups = next
+      return structuredClone(this.groups)
+    })
+  }
+  async deleteGroup(groupId: string): Promise<CreationGroup[]> {
+    if (!/^[a-zA-Z0-9-]{1,80}$/.test(groupId)) throw new Error('无效分组 ID')
+    return this.tx(async () => {
+      if (!this.groups.some(group => group.id === groupId)) throw new Error('分组不存在')
+      const next = this.groups.filter(group => group.id !== groupId)
+      await this.store.saveGroups(next)
+      this.groups = next
+      // 删除分组绝不删除创作，只把成员移回「未分组」。
+      for (const product of this.products) {
+        if (product.groupId !== groupId) continue
+        delete product.groupId
+        await this.store.save(product, { bumpRevision: false })
+      }
+      return structuredClone(this.groups)
+    })
+  }
+  async moveToGroup(id: string, groupId: string): Promise<EtsyProduct> {
+    if (!/^[a-zA-Z0-9-]{1,80}$/.test(id)) throw new Error('无效商品 ID')
+    const targetGroup = typeof groupId === 'string' ? groupId.trim() : ''
+    if (targetGroup && !/^[a-zA-Z0-9-]{1,80}$/.test(targetGroup)) throw new Error('无效分组 ID')
+    return this.tx(async () => {
+      const product = this.find(id)
+      if (targetGroup && !this.groups.some(group => group.id === targetGroup)) throw new Error('目标分组不存在')
+      if (targetGroup) product.groupId = targetGroup
+      else delete product.groupId
+      // 分组归类不触碰文案/编辑乐观锁，避免打断未保存草稿。
       await this.store.save(product, { bumpRevision: false })
       return structuredClone(product)
     })

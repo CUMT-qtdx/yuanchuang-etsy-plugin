@@ -20,7 +20,7 @@ import { CardForm, booleanField, secretField, textField, type CardActions, type 
 import { ChannelsForm, type ChannelDraft, type ChannelsFormActions, type ChannelsFormState } from './channels-form.ts'
 import type { ImageGenScope } from './settings-scope.ts'
 import { describeModel, modelFamily } from '../model-catalog.ts'
-import { IMAGE_MODEL_API, PLUGIN_VERSION, PRESETS_API, PROMPT_ENHANCE_API, USAGE_API, CANVAS_SKILL_API, SUBSCRIPTION_API, SUBSCRIPTION_PROVIDERS, SUBSCRIPTION_PROVIDER_DISPLAY_NAMES, DEFAULT_SUBSCRIPTION_MODELS, EXPERIMENTAL_SUBSCRIPTION_PROVIDERS, isChatCompletionsUrl, isSubscriptionProvider, resolveChannelProtocol, type ModelMapping, type PresetProviderView, type SubscriptionProvider } from '../protocol.ts'
+import { IMAGE_MODEL_API, PLUGIN_VERSION, PRESETS_API, PROMPT_ENHANCE_API, USAGE_API, CANVAS_SKILL_API, SUBSCRIPTION_API, SUBSCRIPTION_PROVIDERS, SUBSCRIPTION_PROVIDER_DISPLAY_NAMES, DEFAULT_SUBSCRIPTION_MODELS, EXPERIMENTAL_SUBSCRIPTION_PROVIDERS, isChatCompletionsUrl, isGeminiNativeUrl, isSubscriptionProvider, resolveChannelProtocol, type ModelMapping, type PresetProviderView, type SubscriptionProvider } from '../protocol.ts'
 import type { ImageGenKey } from './locales.ts'
 import { tt, type TranslateValues } from './helpers.ts'
 import { useImageGenLanguageTick } from './use-language.ts'
@@ -1595,6 +1595,11 @@ function ChannelEditor(props: {
           </div>
         </div>
         <p className={css.fieldHint}>{t(channel.protocol === 'gemini-native' ? 'channels.protocolGeminiHint' : 'channels.protocolHint')}</p>
+        {isGeminiNativeUrl(channel.apiUrl) && channel.protocol === 'images' ? (
+          <p className={css.fieldHint} role="alert" style={{ color: '#a45724' }}>
+            当前地址包含 Gemini 原生路径（:generateContent），继续使用「Images」协议会误拼接 /images/edits 导致 404；建议将协议改为「自动」或「Gemini 原生」。
+          </p>
+        ) : null}
         <label className={css.checkboxRow}>
           <input type="checkbox" checked={channel.apiUrlFull} disabled={!props.writable} onChange={event => { props.onPatch({ apiUrlFull: event.target.checked }) }} />
           <span>{t('channels.apiUrlFull')}</span>

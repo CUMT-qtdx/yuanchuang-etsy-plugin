@@ -7,6 +7,8 @@ export const photographyPresets = [
   { value: 'natural-tabletop', label: '自然木桌' },
   { value: 'home-lifestyle', label: '家居场景' },
   { value: 'seasonal-lifestyle', label: '主题生活场景' },
+  { value: 'hanging-display', label: '悬挂展示' },
+  { value: 'flat-lay', label: '俯拍平铺' },
   { value: 'white-studio', label: '白底摄影棚' },
 ] as const
 export type PhotographyPreset = typeof photographyPresets[number]['value']
@@ -59,6 +61,8 @@ export function photographyBlock(settings: PhotographySettings, scene: FeltScene
     'natural-tabletop': 'Photograph the product on a realistic light oak or natural wooden tabletop with a soft off-white or warm-grey indoor wall behind it. Use gentle side-window daylight and natural tabletop shadows. Keep the indoor environment subtle and spatially coherent.',
     'home-lifestyle': 'Use a restrained real home interior with plausible wooden furniture and a window; only a few relevant background details. Soft natural window light, with the entire product clearly focused and the distant room softly blurred.',
     'seasonal-lifestyle': scene === 'christmas' ? 'Use restrained Christmas home context: subtle pine greenery and warm background lights, never new ornaments on the product.' : scene === 'autumn' ? 'Use restrained autumn home context with a few subdued leaves or warm seasonal accents behind the product.' : scene === 'study' ? 'Use a quiet reading desk scene, with books and a softly lit lamp in the distant background, separate from the product.' : 'Use a restrained home scene relevant to the actual product theme; if no clear season is specified, use a neutral interior with no holiday decorations.',
+    'hanging-display': 'Photograph the hanging ornament(s) naturally suspended by their top jute twine loop or hanging cord from evergreen pine/spruce branches, a taut horizontal twine line, or wooden hooks. Keep the hanging loops visibly connected and under natural gravity, with soft warm festive bokeh in the distant background and generous room above the top loop.',
+    'flat-lay': 'Photograph the product from a clean 90-degree top-down overhead flat-lay angle arranged neatly on a dark rustic wood board, woven linen cloth, or clean matte neutral backdrop. Keep every piece and its complete attached hanging loop fully inside the frame with comfortable margins so nothing is cropped at the edges, with restrained natural corner accents that never obscure the product.',
     'white-studio': 'Use a pure white studio background, soft even studio lighting, clear product edges and natural contact shadows. Do not add furniture, wood texture or background props.',
   }
   return scenes[settings.photography_preset] + ' Keep true product colours, balanced colour temperature and soft realistic illumination. The full subject, including its head, feet and accessories, remains in focus; only the distant background may blur. Supports, contact shadows, surface perspective and object scale must be physically coherent, not a cutout pasted onto scenery.'

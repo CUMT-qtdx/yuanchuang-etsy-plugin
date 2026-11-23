@@ -157,6 +157,8 @@ function placeHistoryHost(root: HTMLElement): HTMLDivElement | undefined {
   const host = document.createElement('div')
   host.dataset.dshImagegenHistoryHost = ''
   host.className = css.sidebarHistoryHost
+  // 阻止滚轮事件冒泡到宿主侧栏的 scrollHandoff 监听器，避免被宿主 preventDefault 吞掉原生滚动。
+  host.addEventListener('wheel', event => { event.stopPropagation() })
   region.append(host)
   return host
 }

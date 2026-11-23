@@ -47,7 +47,7 @@ test('方案只读一次分析，结构化材料唯一生效，不夹入模型�
   let analyses = 0
   const planner = createEtsyModels(async (_, options) => {
     analyses++; assert.match(options.system, /STUDIO_V2_MATERIAL_PLAN/)
-    assert.match(options.system, /眼睛、鼻头、珠类小件默认 retain，不归羊毛/)
+    assert.match(options.system, /黑色珠眼及原图明确可见的硬质珠类、金属小件默认 retain，不归羊毛/)
     assert.match(options.system, /materialPlan/); assert.doesNotMatch(options.system, /建议90到180词/)
     assert.match(options.system, /changesEn/); assert.match(options.system, /恰好4个方案/)
     return JSON.stringify({ name: '蓝裙兔', summary: '白兔', keep: ['白兔五官'], keepEn: ['white rabbit facial features'], plans: Array.from({ length: 4 }, (_, i) => ({ name: `方案${i}`, direction: `独立方向${i}`, changes: ['保持识别点'], changesEn: ['keep the identity markers visible'],

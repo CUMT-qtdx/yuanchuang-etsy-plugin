@@ -89,6 +89,7 @@ export async function putObject(config: StorageSyncConfig, key: string, data: Bu
       authorization,
     },
     body: new Uint8Array(data),
+    signal: AbortSignal.timeout(30_000),
   })
   if (!response.ok) {
     const text = await response.text().catch(() => '')

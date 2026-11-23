@@ -24,8 +24,11 @@ const scenes: FeltScene[] = ['minimal', 'lifestyle', 'autumn', 'christmas', 'stu
 export function normalizeProfileV2(value: unknown): FeltProfile {
   const raw = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
   const select = <T extends string>(v: unknown, allowed: T[]): T[] => Array.isArray(v) ? [...new Set(v.filter((item): item is T => typeof item === 'string' && allowed.includes(item as T)))] : []
+  const productForm = raw.productForm === 'ornament' || raw.productForm === 'figurine' ? raw.productForm : undefined
   return { components: select(raw.components, parts), mixedMaterials: select(raw.mixedMaterials, mixed), tones: select(raw.tones, ['light', 'dark']),
-    scene: scenes.includes(raw.scene as FeltScene) ? raw.scene as FeltScene : 'minimal', materialPlan: normalizeMaterialPlanV2(raw.materialPlan).plan }
+    scene: scenes.includes(raw.scene as FeltScene) ? raw.scene as FeltScene : 'minimal',
+    ...(productForm ? { productForm } : {}),
+    materialPlan: normalizeMaterialPlanV2(raw.materialPlan).plan }
 }
 const partMatches: Array<[FeltPart, RegExp]> = [
   ['face', /脸|面部|五官|\bface\b|facial/i], ['hair', /头发|发髻|发型|\bhair\b|hairstyle/i], ['beard', /胡须|胡子|\bbeard\b/i],
@@ -54,7 +57,9 @@ export function normalizeFeltProfile(value: unknown, fallbackText = ''): FeltPro
   }
   const scene: FeltScene = scenes.includes(raw.scene as FeltScene) ? raw.scene as FeltScene
     : /圣诞|\bchristmas\b/i.test(text) ? 'christmas' : /秋季|感恩节|\b(?:autumn|thanksgiving)\b/i.test(text) ? 'autumn' : /读书|阅读|\breading\b/i.test(text) ? 'study' : 'minimal'
+  const productForm = raw.productForm === 'ornament' || raw.productForm === 'figurine' ? raw.productForm : undefined
   return { components: [...new Set(['body' as const, ...components])], mixedMaterials, tones, scene,
+    ...(productForm ? { productForm } : {}),
     ...(Array.isArray(raw.materialComponents) ? { materialComponents: normalizeMaterialComponents(raw.materialComponents) } : {}),
     ...(raw.materialPlan ? { materialPlan: normalizeMaterialPlanV2(raw.materialPlan).plan } : {}) }
 }

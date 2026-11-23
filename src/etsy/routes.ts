@@ -73,6 +73,11 @@ export function makeEtsyRoutes(deps: {
     action('get', async body => workflow.get(String(body.id))),
     action('delete', async body => workflow.remove(String(body.id))),
     action('rename', async body => workflow.rename(String(body.id), typeof body.name === 'string' ? body.name : '')),
+    action('groups', async () => workflow.listGroups()),
+    action('create-group', async body => workflow.createGroup(typeof body.name === 'string' ? body.name : '')),
+    action('rename-group', async body => workflow.renameGroup(String(body.groupId ?? ''), typeof body.name === 'string' ? body.name : '')),
+    action('delete-group', async body => workflow.deleteGroup(String(body.groupId ?? ''))),
+    action('move-group', async body => workflow.moveToGroup(String(body.id ?? ''), typeof body.groupId === 'string' ? body.groupId : '')),
     action('reference', async body => {
       const count = Number(body.count ?? 4), copyTiming = body.copyTiming === 'selected' ? 'selected' : 'all'
       if (!Number.isInteger(count) || count < 1 || count > 8) throw new Error('生成数量请选择 1 到 8 张')

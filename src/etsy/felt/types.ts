@@ -8,6 +8,7 @@ export type FeltScene = 'minimal' | 'lifestyle' | 'autumn' | 'christmas' | 'stud
 export type FeltAdapter = 'gpt-image' | 'gemini' | 'grok' | 'generic'
 export type FeltStage = 'generation' | 'refinement' | 'multi-view'
 export type MaterialPreset = 'needle_felt_v1_0' | 'needle_felt_v1_0_2' | 'needle_felt_v2_0'
+export type ProductForm = 'figurine' | 'ornament'
 export interface MaterialPlanV2 { version: '2.0'; parts: Array<{ part: string; material: string; treatment: 'felt' | 'retain' | 'unspecified' }> }
 export type MaterialComponentCategory = 'sculpted_needle_felt' | 'loose_wool_or_curly_fleece' | 'flat_felt_sheet' | 'woven_or_knitted_clothing' | 'mixed_material_accessory'
 export type MaterialRegion = 'body' | 'face' | 'ears' | 'limbs' | 'clothing' | 'accessory'
@@ -18,6 +19,7 @@ export interface FeltProfile {
   mixedMaterials: MixedMaterial[]
   tones: Array<'light' | 'dark'>
   scene: FeltScene
+  productForm?: ProductForm
   materialComponents?: MaterialComponent[]
   materialPlan?: MaterialPlanV2
 }
@@ -52,7 +54,7 @@ export interface FeltApplication {
   ruleIds: string[]
   profile: FeltProfile
   prompt: string
-  modules: { design_preservation_v1_0?: string; design_preservation_v1_1?: string; needle_felt_v1_0?: string; needle_felt_v1_0_2?: string; needle_felt_v2_0?: string; felt_photography_v1_0?: string; felt_composition_v1_0?: string; custom_background_v1_0?: string; multi_view_consistency_v1_0?: string; approved_material_lock_v1_0?: string; hero_surface_continuity_v1_0?: string; product_view_direction_v1_0?: string; product_spatial_v1_0?: string }
+  modules: { design_preservation_v1_0?: string; design_preservation_v1_1?: string; needle_felt_v1_0?: string; needle_felt_v1_0_2?: string; needle_felt_v2_0?: string; ornament_v1_0?: string; felt_photography_v1_0?: string; felt_composition_v1_0?: string; custom_background_v1_0?: string; multi_view_consistency_v1_0?: string; approved_material_lock_v1_0?: string; hero_surface_continuity_v1_0?: string; product_view_direction_v1_0?: string; product_spatial_v1_0?: string }
   photography: PhotographySettings
   multiView?: MultiViewContext
   designPreservation?: FeltRequestContext['designPreservation']

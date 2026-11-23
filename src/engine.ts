@@ -8,7 +8,7 @@
  * it directly.
  */
 
-import { isChatCompletionsUrl, resolveChannelProtocol, type ChannelProtocolPreference, type GeneratedImage, type GenerateRequest, type GenerateResult } from './protocol.ts'
+import { isChatCompletionsUrl, isGeminiNativeUrl, resolveChannelProtocol, type ChannelProtocolPreference, type GeneratedImage, type GenerateRequest, type GenerateResult } from './protocol.ts'
 import { detectImageMime } from './image-format.ts'
 import { MAX_PRODUCT_IMAGE_BYTES } from './image-limits.ts'
 import { modelFamily, promptCharLimit } from './model-catalog.ts'
@@ -955,6 +955,13 @@ async function requestOneImage(
   const budget = requestSignal(signal, UPSTREAM_TIMEOUT_MS)
   try {
     let response: Response
+    // 仅拦截 100% 必然 404 的明确冲突：完整原生 :generateContent 地址配了 images 协议且未勾选完整地址。
+    if (upstream.apiUrlFull !== true && isGeminiNativeUrl(baseUrl)) {
+      throw new ImageGenError(
+        '当前渠道地址是 Gemini 原生接口（:generateContent），请将「请求协议」改为「自动」或「Gemini 原生」，避免误拼接 /images/edits',
+        'protocol-mismatch',
+      )
+    }
     // Seedream has no /images/edits endpoint: both modes hit generations.
     const endpoint = request.mode === 'edit' && !isSeedream(params.model)
       ? '/images/edits'
@@ -1006,8 +1013,12 @@ async function requestOneImage(
       // Carry the status and the address into the message: an upstream that
       // answers 404/405 is usually a URL-shape mismatch, and seeing which
       // address was called settles it without a second attempt (#38).
+      const rawMessage = upstreamMessage(payload, response.status)
+      const protocolHint = response.status === 404 && /Images API is not supported|Unsupported action/i.test(rawMessage)
+        ? '；提示：该中转接口可能需在渠道设置中切换为「Chat Completions」或「Gemini 原生」协议'
+        : ''
       const failure = new ImageGenError(
-        `${upstreamMessage(payload, response.status)}（HTTP ${response.status} · ${displayUrl(requestUrl)}）`,
+        `${rawMessage}（HTTP ${response.status} · ${displayUrl(requestUrl)}${protocolHint}）`,
         'upstream-rejected',
       )
       recordFailure(context, failure, {
