@@ -8,6 +8,26 @@ async function post<T>(url: string, body: unknown = {}): Promise<T> {
   if (!response.ok || value.ok !== true) throw new Error(value.message || `更新请求失败（HTTP ${response.status}）`)
   return value
 }
+const AUTO_OPEN_KEY = 'dsh-imagegen:update-auto-opened-version'
+const autoOpenedInSession = new Set<string>()
+
+/** 记录每个新版本是否已自动展开过更新面板，保证同一新版本仅首次自动展开一次。 */
+export function shouldAutoOpenUpdatePopover(version: string): boolean {
+  const key = version.trim()
+  if (!key || autoOpenedInSession.has(key)) return false
+  try {
+    if (window.localStorage.getItem(AUTO_OPEN_KEY) === key) {
+      autoOpenedInSession.add(key)
+      return false
+    }
+    window.localStorage.setItem(AUTO_OPEN_KEY, key)
+  } catch {
+    // 受限存储环境退回本次会话内去重，不阻断面板展示。
+  }
+  autoOpenedInSession.add(key)
+  return true
+}
+
 export function AppUpdateButton(): React.JSX.Element {
   const [info, setInfo] = useState<UpdateInfo>(), [progress, setProgress] = useState<UpdateProgress>(), [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [checking, setChecking] = useState(false)
@@ -17,7 +37,14 @@ export function AppUpdateButton(): React.JSX.Element {
     setChecking(true); if (manual) { setOpen(true); setMessage('') }
     try {
       const result = await post<{ ok: true; update: UpdateInfo }>(UPDATE_API.check, { force: manual })
-      if (live.current) { setInfo(result.update); if (manual && !result.update.updateAvailable) setMessage('当前已是最新版本') }
+      if (live.current) {
+        setInfo(result.update)
+        if (result.update.updateAvailable && result.update.latestVersion) {
+          if (shouldAutoOpenUpdatePopover(result.update.latestVersion)) setOpen(true)
+        } else if (manual) {
+          setMessage('当前已是最新版本')
+        }
+      }
     } catch (error) { if (manual && live.current) setMessage(error instanceof Error ? error.message : '检查失败，请稍后重试') }
     finally { if (live.current) setChecking(false) }
   }
