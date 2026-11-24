@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Plan)
+﻿param([Parameter(Mandatory=$true)][string]$Plan)
 $ErrorActionPreference='Stop'
 [Console]::OutputEncoding=New-Object System.Text.UTF8Encoding($false)
 # DSH 可能从 PowerShell 7 启动；为此子进程补齐 Windows PowerShell 自带模块路径。
@@ -55,9 +55,14 @@ try{
   Start-Sleep -Milliseconds 1200
   foreach($p in @(SameAppProcesses)){try{[void](Get-Process -Id $p.ProcessId -ErrorAction Stop).CloseMainWindow()}catch{}}
   Start-Sleep -Milliseconds 1800
-  foreach($p in @(SameAppProcesses)){Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop}
+  # 主进程退出时子进程可能同时自行结束，强杀须容忍“进程已不存在”，避免误中断并回滚。
+  foreach($p in @(SameAppProcesses)){try{Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue}catch{}}
   $deadline=[DateTime]::UtcNow.AddSeconds(15)
-  while(@(SameAppProcesses).Count -gt 0){if([DateTime]::UtcNow -gt $deadline){throw 'DSH 未能完全退出，安装未开始'};Start-Sleep -Milliseconds 300}
+  while(@(SameAppProcesses).Count -gt 0){
+    if([DateTime]::UtcNow -gt $deadline){throw 'DSH 未能完全退出，安装未开始'}
+    foreach($p in @(SameAppProcesses)){try{Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue}catch{}}
+    Start-Sleep -Milliseconds 300
+  }
   State 'installing' '正在安装新版插件'
   $args=@('--silent','--no-launch','--app',('"'+$job.application+'"'),'--data',('"'+$data+'"'),'--result',('"'+$job.receipt+'"'))
   $process=Start-Process -FilePath $job.installer -ArgumentList $args -WindowStyle Hidden -Wait -PassThru

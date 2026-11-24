@@ -87,3 +87,9 @@ test('下载中断可重新尝试；重启后读到独立进程的结果',async 
  const file=path.join(root,'plugin-updates/yuanchuang/state.json');await fs.writeFile(file,'\ufeff'+JSON.stringify({phase:'failed',version:'2.1.2',message:'已恢复旧版',rolledBack:true,receivedBytes:0,totalBytes:0,updatedAt:Date.now()}))
  const other=new AppUpdateService({dataDirectory:root,busy:async()=>false});assert.equal((await other.status()).rolledBack,true)
 })
+test('更新交接脚本强杀残留进程时容忍已自行退出的子进程，不因竞态中断回滚',async()=>{
+ const script=await fs.readFile(new URL('../distribution/windows/Apply-Update.ps1',import.meta.url),'utf8')
+ assert.doesNotMatch(script,/Stop-Process[^\r\n]*-ErrorAction\s+Stop/i,'Stop-Process 不应使用 -ErrorAction Stop 导致已退出子进程抛致命错误')
+ assert.match(script,/Stop-Process\s+-Id\s+\$p\.ProcessId\s+-Force\s+-ErrorAction\s+SilentlyContinue/)
+ assert.match(script,/DSH 未能完全退出，安装未开始/)
+})
