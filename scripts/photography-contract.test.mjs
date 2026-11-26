@@ -56,3 +56,67 @@ test('后台请求保存目标几何并加入独立构图引导，不改动原�
   assert.equal(product.images[0].visualRules.compositionGuide.image,1)
   assert.match(request.prompt,/layout guide/i)
 })
+
+test('改图指令写“将场景更改为圣诞节主题”会覆盖旧的木桌/原背景预设并加入真实光学融合约束', () => {
+  const fromTabletop = composeFeltPrompt(makeFeltContext({
+    basePrompt: 'Needle-felted winter gnome figurine holding a small pine branch.',
+    stage: 'refinement',
+    task: 'redesign',
+    materialPreset: CURRENT_MATERIAL,
+    photography: { ...defaultPhotography(), photography_preset: 'natural-tabletop', explicit_controls: ['background'] },
+    latestInstruction: '将场景更改为圣诞节主题',
+  }), 'gemini-3.1-flash-image')
+  assert.equal(fromTabletop.photography.photography_preset, 'custom')
+  assert.equal(fromTabletop.photography.preserve_background, false)
+  assert.match(fromTabletop.prompt, /将场景更改为圣诞节主题/)
+  assert.match(fromTabletop.prompt, /PHOTOREALISTIC INTEGRATION/)
+  assert.match(fromTabletop.prompt, /Re-light the entire product/)
+  assert.match(fromTabletop.prompt, /ambient-occlusion contact shadows/)
+  assert.doesNotMatch(fromTabletop.prompt, /No living-room clutter or seasonal decorations/i)
+
+  const fromPreserve = composeFeltPrompt(makeFeltContext({
+    basePrompt: 'Needle-felted raccoon hanging ornament with jute twine loop.',
+    stage: 'refinement',
+    task: 'felt-conversion',
+    materialPreset: CURRENT_MATERIAL,
+    photography: { ...sourcePhoto },
+    latestInstruction: '把场景换成温馨圣诞氛围',
+  }), 'gemini-3.1-flash-image')
+  assert.equal(fromPreserve.photography.photography_preset, 'custom')
+  assert.equal(fromPreserve.photography.preserve_background, false)
+  assert.doesNotMatch(fromPreserve.prompt, /Preserve the source photographic background/)
+})
+
+test('小挂件未手动指定背景时默认切至悬挂展示，手动选桌面时避免挂绳穿帮', () => {
+  const autoOrnament = composeFeltPrompt(makeFeltContext({
+    basePrompt: 'Needle-felted raccoon ornament holding a mini pine tree with jute twine hanging loop.',
+    stage: 'generation',
+    task: 'redesign',
+    materialPreset: CURRENT_MATERIAL,
+    profile: { productForm: 'ornament' },
+    photography: defaultPhotography('redesign'),
+  }), 'gemini-3.1-flash-image')
+  assert.equal(autoOrnament.photography.photography_preset, 'hanging-display')
+  assert.match(autoOrnament.prompt, /natural hanging product-photography display/i)
+  assert.doesNotMatch(autoOrnament.prompt, /solid-wood table/)
+
+  const explicitTableOrnament = composeFeltPrompt(makeFeltContext({
+    basePrompt: 'Needle-felted raccoon ornament with jute twine hanging loop.',
+    stage: 'generation',
+    task: 'redesign',
+    materialPreset: CURRENT_MATERIAL,
+    profile: { productForm: 'ornament' },
+    photography: { ...defaultPhotography('redesign'), photography_preset: 'natural-tabletop', explicit_controls: ['background'] },
+  }), 'gemini-3.1-flash-image')
+  assert.equal(explicitTableOrnament.photography.photography_preset, 'natural-tabletop')
+  assert.match(explicitTableOrnament.prompt, /never draw a taut rope pulling upward from empty space while the ornament simultaneously stands on a tabletop/i)
+})
+
+test('主题生活场景自动识别森系/万圣/圣诞等主题，不退回生硬灰墙', () => {
+  const woodland = render({ ...defaultPhotography(), photography_preset: 'seasonal-lifestyle' }, { userRequirements: '森林蘑菇小精灵' })
+  assert.match(woodland.prompt, /woodland\/cottage-core/i)
+  assert.match(woodland.prompt, /PHOTOREALISTIC INTEGRATION/)
+
+  const halloween = render({ ...defaultPhotography(), photography_preset: 'seasonal-lifestyle' }, { userRequirements: '万圣节女巫帽小黑猫' })
+  assert.match(halloween.prompt, /autumn-evening wooden shelf/i)
+})

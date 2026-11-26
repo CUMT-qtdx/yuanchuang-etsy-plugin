@@ -50,8 +50,8 @@ export function effectivePhotography(settings: PhotographySettings, userText: st
   if (aspect) next.aspect_ratio = aspect[1]!.replace(/\s/g, '').replace('：', ':')
   return next
 }
-function explicitBackground(text: string): boolean {
-  return /(?:背景(?:改为|改成|换成|使用|设为|为|是)|(?:使用|换成|改成).{0,18}背景|(?:background|backdrop)\s*(?:is|:|to|of)|(?:use|with|on|against)\s+(?:a\s+)?[\w -]{0,32}(?:background|backdrop))/i.test(text)
+export function explicitBackground(text: string): boolean {
+  return /(?:(?:背景|场景|环境|氛围)\s*(?:改为|改成|换成|更改为|更换为|调整为|变为|变成|使用|设为|为|是)|(?:将|把)\s*(?:背景|场景|环境|氛围).{0,10}(?:改|换|更|调|设|变)|(?:使用|换成|改成|更改为|更换为|改为).{0,18}(?:背景|场景|环境|氛围)|(?:change|replace|switch|set|turn|update)\s+(?:the\s+)?(?:background|backdrop|scene|setting|environment)\s+(?:to|into|as|with)|(?:background|backdrop|scene|setting)\s*(?:is|:|to|of)|(?:use|with|on|against|in)\s+(?:a\s+)?[\w -]{0,32}(?:background|backdrop|scene|setting))/i.test(text)
 }
 export function photographyBlock(settings: PhotographySettings, scene: FeltScene, userText: string): string {
   if (settings.preserve_background || settings.photography_preset === 'preserve-original') return 'Preserve the source background, supporting surface, lighting direction and environment. Do not introduce a tabletop, props or a new scene. Integrate changed felt surfaces with the existing light and shadows.'

@@ -1,6 +1,7 @@
 import { compositionTarget, targetCompositionBlock } from './photography-contract.ts'
 import type { FeltApplication, FeltRequestContext, FeltAdapter } from './types.ts'
 import { normalizePhotography, effectivePhotography, photographyBlockV2 as photographyBlock, PHOTOGRAPHY_VERSION } from './photography-options.ts'
+import { explicitBackground } from './photography-v1.ts'
 import { COMPOSITION_VERSION } from './composition-v1.ts'
 import { STUDIO_MATERIAL_V2, STUDIO_MATERIAL_REVISION, NEEDLE_FELT_CORE_V2, normalizeMaterialPlanV2, materialPlanBlockV2, stripOwnedBlocksV2 } from './material-policy-v2.ts'
 import { isOrnamentContext, ORNAMENT_CRAFT_V1, ORNAMENT_MODULE, ORNAMENT_NEGATIVE_V1, ORNAMENT_RULES_VERSION } from './ornament-v1.ts'
@@ -29,19 +30,34 @@ export function composeStudioV2(context: FeltRequestContext, model: string, adap
   let brief = preserve ? referenceFirstDesignBrief(editing, context.designPreservation?.referenceRoles, context.compositionGuide) : stripOwnedBlocksV2(context.basePrompt)
   // 复用当前安装版已存在的构图兼容句，不引入新的占比算法。
   if (photography.framing_policy === 'override_reference') brief = brief.replace(/Keep the framing and character scale consistent with the reference\.?/gi, 'Preserve identity and internal proportions; use the selected camera framing.')
+  const ornament = isOrnamentContext(
+    context.profile,
+    [brief, context.userRequirements, context.latestInstruction ?? '', ...resolved.plan.parts.map(part => `${part.part} ${part.material}`)],
+    photography.photography_preset,
+  )
+  // 改图时若最新指令明确要求换场景/背景，将其升级为当前生效的场景描述，避免与旧预设冲突。
+  const editChangesScene = editing && !!context.latestInstruction && explicitBackground(context.latestInstruction)
+  if (editChangesScene) {
+    photography.preserve_background = false
+    photography.photography_preset = 'custom'
+    photography.custom_background = context.latestInstruction!.trim()
+  } else if (ornament && !source.explicit_controls?.includes('background') && photography.photography_preset === 'natural-tabletop' && !photography.preserve_background) {
+    // 小挂件在用户未手动锁定背景时，默认切到自然悬挂实景，避免“顶上吊绳+脚底踩木桌”的物理穿帮。
+    photography.photography_preset = 'hanging-display'
+  }
   const photoText = context.latestInstruction ? `${context.userRequirements}\nLatest correction: ${context.latestInstruction}` : context.userRequirements
-  const rawPhotography = photographyBlock(photography, preserve ? 'minimal' : context.profile.scene, photoText)
+  const themeText = [brief, context.userRequirements, context.latestInstruction ?? ''].filter(Boolean).join('\n')
+  const rawPhotography = photographyBlock(photography, preserve ? 'minimal' : context.profile.scene, photoText, {
+    ornament,
+    themeText,
+    latestInstruction: editChangesScene ? context.latestInstruction : undefined,
+  })
   const photographicScene = preserve ? rawPhotography.replace('The full subject, including its head, feet and accessories, remains in focus; only the distant background may blur.', 'Keep the whole visible product in focus; only the distant background may blur.') : rawPhotography
   // 唯一的优先级说明：其余段落只描述内容，不再各自声明“谁覆盖谁”。
   const priority = preserve
     ? 'PRIORITY: The original reference image is the sole authority for visible product design. Explicit user edits override only their stated scope. Machine-written descriptions, category names and inferred part lists do not authorize additions or reconstructions. Material and photography instructions change their own scopes only. When correcting a generated result, compare geometry directly with the original reference. Preserve its environment only when the photography setting says preserve-original; any selected new scene replaces it. The composition target controls the complete product size in the output, not its anatomy.'
     : editing ? 'PRIORITY (highest first): 1) the latest edit; 2) user requirements; 3) every other detail of image 1, the selected design, framed and lit as the photography and composition settings below describe; 4) material defaults. A higher item overrides any conflicting lower item. Change only what the latest edit asks for.'
       : 'PRIORITY (highest first): 1) user requirements; 2) the planned changes in DESIGN; 3) identity details kept from the reference; 4) the selected photography and composition; 5) material defaults. A higher item overrides any conflicting lower item. Every planned change must be visible; never return the reference unchanged.'
-  const ornament = isOrnamentContext(
-    context.profile,
-    [brief, context.userRequirements, context.latestInstruction ?? '', ...resolved.plan.parts.map(part => `${part.part} ${part.material}`)],
-    photography.photography_preset,
-  )
   const prompt = [
     '[STUDIO_MATERIAL_V2]',
     priority,

@@ -1,5 +1,5 @@
 // 仅扩展背景输入与旧设置兼容，不修改已发布的摄影/构图v1.0规则正文。
-import { photographyPresets as builtInPresets, normalizePhotography as normalizeBase, effectivePhotography as effectiveBase, photographyBlock as baseBlock, type PhotographySettings as BaseSettings } from './photography-v1.ts'
+import { photographyPresets as builtInPresets, normalizePhotography as normalizeBase, effectivePhotography as effectiveBase, explicitBackground, photographyBlock as baseBlock, type PhotographySettings as BaseSettings } from './photography-v1.ts'
 import { compositionBlock as baseComposition } from './composition-v1.ts'
 import type { FeltScene } from './types.ts'
 import { photographicEnvironment } from './photography-contract.ts'
@@ -39,10 +39,23 @@ export function photographyBlock(settings: PhotographySettings, scene: FeltScene
   if (!settings.custom_background?.trim()) throw new Error('选择“其他 / 自定义”后，请填写背景描述')
   return `Use this user-defined photographic environment: ${settings.custom_background.trim()}. Apply it to the scene only; do not redesign the product or add accessories to it. Explicit latest user instructions take precedence over this saved scene. Preserve true product colours, realistic support, coherent contact shadows and spatial scale. Keep the full product and its fine material details in focus, with a naturally softer distant background. Do not add an automatic wooden table, wall or seasonal props unless requested in this description.`
 }
-export function photographyBlockV2(settings: PhotographySettings, scene: FeltScene, userText: string): string {
-  if (settings.photography_preset !== 'custom') return photographicEnvironment(settings, scene)
+export function photographyBlockV2(
+  settings: PhotographySettings,
+  scene: FeltScene,
+  userText: string,
+  options?: { ornament?: boolean; themeText?: string; latestInstruction?: string },
+): string {
+  // 改图指令里明确要求更换场景/背景时，直接转为自定义场景替换，避免残留旧预设（如禁止节日装饰的木桌或保留原背景）与最新指令冲突。
+  if (options?.latestInstruction && explicitBackground(options.latestInstruction)) {
+    return photographicEnvironment(
+      { ...settings, photography_preset: 'custom', preserve_background: false, custom_background: options.latestInstruction.trim() },
+      scene,
+      options,
+    )
+  }
+  if (settings.photography_preset !== 'custom') return photographicEnvironment(settings, scene, options)
   if (settings.preserve_background) return baseBlock(toBase(settings), scene, userText)
   if (!settings.custom_background?.trim()) throw new Error('选择“其他 / 自定义”后，请填写背景描述')
-  return photographicEnvironment(settings, scene)
+  return photographicEnvironment(settings, scene, options)
 }
 export function compositionBlock(settings: PhotographySettings): string { return baseComposition(toBase(settings)) }
